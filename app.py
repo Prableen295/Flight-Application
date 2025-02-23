@@ -15,10 +15,10 @@ class FlightBookingApp:
             "Ahmedabad (AMD)"
         ]
         self.airlines_data = {
-            "IndiGo": "https://via.placeholder.com/100x50.png?text=IndiGo",
-            "Air India": "https://via.placeholder.com/100x50.png?text=Air+India",
-            "SpiceJet": "https://via.placeholder.com/100x50.png?text=SpiceJet",
-            "Vistara": "https://via.placeholder.com/100x50.png?text=Vistara"
+            "IndiGo": "6E",
+            "Air India": "AI",
+            "SpiceJet": "SG",
+            "Vistara": "UK"
         }
         self.fare_families = ["Economy", "Premium Economy", "Business"]
 
@@ -29,7 +29,7 @@ class FlightBookingApp:
             airline = random.choice(list(self.airlines_data.keys()))
             flight = {
                 "airline": airline,
-                "image": self.airlines_data[airline],
+                "flight_log": f"{self.airlines_data[airline]}-{random.randint(1000, 9999)}",
                 "departure": f"{random.randint(0,23):02d}:{random.choice(['00', '30'])}",
                 "arrival": f"{random.randint(0,23):02d}:{random.choice(['00', '30'])}",
                 "price": f"₹{random.randint(3000, 8000):,}",
@@ -76,24 +76,21 @@ class FlightBookingApp:
 
             for flight in flights:
                 with st.container():
-                    cols = st.columns([1, 2, 2, 2, 2, 1])
+                    cols = st.columns([2, 2, 2, 2, 1])
 
                     with cols[0]:
-                        st.image(flight["image"], use_column_width=True)
+                        st.write(f"**{flight['airline']}** ({flight['flight_log']})")
 
                     with cols[1]:
-                        st.write(f"**{flight['airline']}**")
-
-                    with cols[2]:
                         st.write(f"Departure: {flight['departure']}")
 
-                    with cols[3]:
+                    with cols[2]:
                         st.write(f"Arrival: {flight['arrival']}")
 
-                    with cols[4]:
+                    with cols[3]:
                         st.write(f"Price: {flight['price']}\n({flight['fare_family']})")
 
-                    with cols[5]:
+                    with cols[4]:
                         st.button("Book", key=f"out_{flight['departure']}")
 
                     st.divider()
@@ -105,24 +102,21 @@ class FlightBookingApp:
 
                 for flight in return_flights:
                     with st.container():
-                        cols = st.columns([1, 2, 2, 2, 2, 1])
+                        cols = st.columns([2, 2, 2, 2, 1])
 
                         with cols[0]:
-                            st.image(flight["image"], use_column_width=True)
+                            st.write(f"**{flight['airline']}** ({flight['flight_log']})")
 
                         with cols[1]:
-                            st.write(f"**{flight['airline']}**")
-
-                        with cols[2]:
                             st.write(f"Departure: {flight['departure']}")
 
-                        with cols[3]:
+                        with cols[2]:
                             st.write(f"Arrival: {flight['arrival']}")
 
-                        with cols[4]:
+                        with cols[3]:
                             st.write(f"Price: {flight['price']}\n({flight['fare_family']})")
 
-                        with cols[5]:
+                        with cols[4]:
                             st.button("Book", key=f"ret_{flight['departure']}")
 
                         st.divider()
