@@ -1,1 +1,106 @@
-[{"insert":"import tkinter as tk\nfrom tkinter import ttk, messagebox\nfrom tkcalendar import DateEntry\nfrom datetime import datetime, timedelta\n\nclass FlightBookingApp:\n    def __init__(self, root):\n        self.root = root\n        self.root.title(\"Flight Booking System\")\n        self.root.geometry(\"800x600\")\n        \n        # Sample cities (you can expand this list)\n        self.cities = [\n            \"Mumbai (BOM)\",\n            \"Delhi (DEL)\",\n            \"Bangalore (BLR)\",\n            \"Chennai (MAA)\",\n            \"Kolkata (CCU)\",\n            \"Hyderabad (HYD)\",\n            \"Pune (PNQ)\",\n            \"Ahmedabad (AMD)\"\n        ]\n        \n        self.setup_ui()\n    \n    def setup_ui(self):\n        # Main Frame\n        main_frame = ttk.Frame(self.root, padding=\"20\")\n        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))\n        \n        # Title\n        title_label = ttk.Label(main_frame, text=\"Search Flights\", font=('Helvetica', 18, 'bold'))\n        title_label.grid(row=0, column=0, columnspan=2, pady=20)\n        \n        # From City\n        ttk.Label(main_frame, text=\"From:\").grid(row=1, column=0, sticky=tk.W, pady=5)\n        self.from_city = ttk.Combobox(main_frame, values=self.cities, width=30)\n        self.from_city.grid(row=1, column=1, sticky=tk.W, pady=5)\n        \n        # To City\n        ttk.Label(main_frame, text=\"To:\").grid(row=2, column=0, sticky=tk.W, pady=5)\n        self.to_city = ttk.Combobox(main_frame, values=self.cities, width=30)\n        self.to_city.grid(row=2, column=1, sticky=tk.W, pady=5)\n        \n        # Departure Date\n        ttk.Label(main_frame, text=\"Departure Date:\").grid(row=3, column=0, sticky=tk.W, pady=5)\n        self.departure_date = DateEntry(main_frame, width=30, mindate=datetime.now())\n        self.departure_date.grid(row=3, column=1, sticky=tk.W, pady=5)\n        \n        # Return Date (optional)\n        ttk.Label(main_frame, text=\"Return Date (Optional):\").grid(row=4, column=0, sticky=tk.W, pady=5)\n        self.return_date = DateEntry(main_frame, width=30, mindate=datetime.now())\n        self.return_date.grid(row=4, column=1, sticky=tk.W, pady=5)\n        \n        # Number of Passengers\n        ttk.Label(main_frame, text=\"Passengers:\").grid(row=5, column=0, sticky=tk.W, pady=5)\n        passenger_frame = ttk.Frame(main_frame)\n        passenger_frame.grid(row=5, column=1, sticky=tk.W, pady=5)\n        \n        self.adult_var = tk.StringVar(value=\"1\")\n        ttk.Label(passenger_frame, text=\"Adults:\").pack(side=tk.LEFT)\n        ttk.Spinbox(passenger_frame, from_=1, to=9, width=5, textvariable=self.adult_var).pack(side=tk.LEFT, padx=5)\n        \n        # Search Button\n        search_button = ttk.Button(main_frame, text=\"Search Flights\", command=self.search_flights)\n        search_button.grid(row=6, column=0, columnspan=2, pady=20)\n        \n        # Results Frame\n        self.results_frame = ttk.Frame(main_frame)\n        self.results_frame.grid(row=7, column=0, columnspan=2, sticky=(tk.W, tk.E))\n    \n    def search_flights(self):\n        # Validate inputs\n        if not self.validate_inputs():\n            return\n            \n        # Clear previous results\n        for widget in self.results_frame.winfo_children():\n            widget.destroy()\n            \n        # Display sample results (in real app, this would fetch from an API)\n        self.display_sample_results()\n    \n    def validate_inputs(self):\n        if not self.from_city.get() or not self.to_city.get():\n            messagebox.showerror(\"Error\", \"Please select both departure and arrival cities\")\n            return False\n            \n        if self.from_city.get() == self.to_city.get():\n            messagebox.showerror(\"Error\", \"Departure and arrival cities cannot be the same\")\n            return False\n            \n        dep_date = self.departure_date.get_date()\n        ret_date = self.return_date.get_date()\n        \n        if ret_date < dep_date:\n            messagebox.showerror(\"Error\", \"Return date cannot be earlier than departure date\")\n            return False\n            \n        return True\n    \n    def display_sample_results(self):\n        # Sample flight data (in real app, this would come from an API)\n        sample_flights = [\n            {\"airline\": \"IndiGo\", \"departure\": \"06:00\", \"arrival\": \"08:30\", \"price\": \"₹4,500\"},\n            {\"airline\": \"Air India\", \"departure\": \"08:30\", \"arrival\": \"11:00\", \"price\": \"₹5,200\"},\n            {\"airline\": \"SpiceJet\", \"departure\": \"14:15\", \"arrival\": \"16:45\", \"price\": \"₹4,800\"}\n        ]\n        \n        # Results header\n        ttk.Label(self.results_frame, text=\"Available Flights\", font=('Helvetica', 12, 'bold')).grid(row=0, column=0, columnspan=4, pady=10)\n        \n        # Column headers\n        headers = [\"Airline\", \"Departure\", \"Arrival\", \"Price\"]\n        for i, header in enumerate(headers):\n            ttk.Label(self.results_frame, text=header, font=('Helvetica', 10, 'bold')).grid(row=1, column=i, padx=10)\n        \n        # Display flights\n        for i, flight in enumerate(sample_flights, start=2):\n            ttk.Label(self.results_frame, text=flight[\"airline\"]).grid(row=i, column=0, padx=10)\n            ttk.Label(self.results_frame, text=flight[\"departure\"]).grid(row=i, column=1, padx=10)\n            ttk.Label(self.results_frame, text=flight[\"arrival\"]).grid(row=i, column=2, padx=10)\n            ttk.Label(self.results_frame, text=flight[\"price\"]).grid(row=i, column=3, padx=10)\n            ttk.Button(self.results_frame, text=\"Book Now\").grid(row=i, column=4, padx=10)\n\nif __name__ == \"__main__\":\n    root = tk.Tk()\n    app = FlightBookingApp(root)\n    root.mainloop()\n"}]
+import streamlit as st
+from datetime import datetime, timedelta
+import random
+
+class FlightBookingApp:
+    def __init__(self):
+        self.cities = [
+            "Mumbai (BOM)",
+            "Delhi (DEL)",
+            "Bangalore (BLR)",
+            "Chennai (MAA)",
+            "Kolkata (CCU)",
+            "Hyderabad (HYD)",
+            "Pune (PNQ)",
+            "Ahmedabad (AMD)"
+        ]
+        
+    def generate_sample_flights(self):
+        airlines = ["IndiGo", "Air India", "SpiceJet", "Vistara"]
+        flights = []
+        
+        for _ in range(3):
+            flight = {
+                "airline": random.choice(airlines),
+                "departure": f"{random.randint(0,23):02d}:{random.choice(['00', '30'])}",
+                "arrival": f"{random.randint(0,23):02d}:{random.choice(['00', '30'])}",
+                "price": f"₹{random.randint(3000, 8000):,}"
+            }
+            flights.append(flight)
+        return flights
+
+    def run(self):
+        st.title("Flight Booking System")
+        
+        # Create two columns for inputs
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            from_city = st.selectbox("From:", self.cities, index=0)
+            departure_date = st.date_input(
+                "Departure Date:",
+                min_value=datetime.now().date(),
+                value=datetime.now().date()
+            )
+        
+        with col2:
+            to_city = st.selectbox("To:", self.cities, index=1)
+            adults = st.number_input("Number of Adults:", min_value=1, max_value=9, value=1)
+        
+        # Optional return date
+        return_date = st.date_input(
+            "Return Date (Optional):",
+            min_value=departure_date,
+            value=departure_date + timedelta(days=7)
+        )
+        
+        if st.button("Search Flights"):
+            if from_city == to_city:
+                st.error("Departure and arrival cities cannot be the same!")
+                return
+                
+            st.subheader("Available Flights")
+            
+            # Display outbound flights
+            st.write(f"**Outbound: {from_city} → {to_city}, {departure_date}**")
+            flights = self.generate_sample_flights()
+            
+            # Create a nice looking table for flights
+            for flight in flights:
+                with st.container():
+                    cols = st.columns([2, 2, 2, 2, 1])
+                    with cols[0]:
+                        st.write(f"**{flight['airline']}**")
+                    with cols[1]:
+                        st.write(f"Departure: {flight['departure']}")
+                    with cols[2]:
+                        st.write(f"Arrival: {flight['arrival']}")
+                    with cols[3]:
+                        st.write(f"Price: {flight['price']}")
+                    with cols[4]:
+                        st.button("Book", key=f"out_{flight['departure']}")
+                    st.divider()
+            
+            # If return date is different, show return flights
+            if return_date != departure_date:
+                st.write(f"**Return: {to_city} → {from_city}, {return_date}**")
+                return_flights = self.generate_sample_flights()
+                
+                for flight in return_flights:
+                    with st.container():
+                        cols = st.columns([2, 2, 2, 2, 1])
+                        with cols[0]:
+                            st.write(f"**{flight['airline']}**")
+                        with cols[1]:
+                            st.write(f"Departure: {flight['departure']}")
+                        with cols[2]:
+                            st.write(f"Arrival: {flight['arrival']}")
+                        with cols[3]:
+                            st.write(f"Price: {flight['price']}")
+                        with cols[4]:
+                            st.button("Book", key=f"ret_{flight['departure']}")
+                        st.divider()
+
+if __name__ == "__main__":
+    app = FlightBookingApp()
+    app.run()
