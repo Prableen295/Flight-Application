@@ -91,7 +91,7 @@ class FlightBookingApp:
                         st.write(f"Price: {flight['price']}\n({flight['fare_family']})")
 
                     with cols[4]:
-                        st.button("Book", key=f"out_{flight['departure']}")
+                        st.button("Book", key=f"out_{flight['flight_log']}_{flight['departure']}")
 
                     st.divider()
 
@@ -117,7 +117,7 @@ class FlightBookingApp:
                             st.write(f"Price: {flight['price']}\n({flight['fare_family']})")
 
                         with cols[4]:
-                            st.button("Book", key=f"ret_{flight['departure']}")
+                            st.button("Book", key=f"ret_{flight['flight_log']}_{flight['departure']}")
 
                         st.divider()
 
