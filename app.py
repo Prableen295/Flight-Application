@@ -664,4 +664,4 @@ class FlightBookingApp:
         # Sort flights
         if st.session_state.sort_by == "price":
             filtered.sort(key=lambda x: x["price"])
-        elif st.session_state.sort_
+        elif st.session_state.sort_':'
