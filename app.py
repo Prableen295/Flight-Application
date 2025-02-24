@@ -654,7 +654,9 @@ class FlightBookingApp:
         return flights
     
     def filter_and_sort_flights(self, flights):
+        
     """Filter and sort flight results based on user preferences"""
+    
     # Filter by airline
     filtered = [f for f in flights if f["airline"] in st.session_state.filter_airlines]
     
