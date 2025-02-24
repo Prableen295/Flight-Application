@@ -662,6 +662,13 @@ class FlightBookingApp:
         filtered = [f for f in filtered if f["class"] in st.session_state.filter_classes]
         
         # Sort flights
-        if st.session_state.sort_by == "price":
-            filtered.sort(key=lambda x: x["price"])
-        elif st.session_state.sort_':'
+       if st.session_state.sort_by == "price":
+        filtered.sort(key=lambda x: x["price"])
+    elif st.session_state.sort_by == "departure":
+        filtered.sort(key=lambda x: x["departure_time"])
+    elif st.session_state.sort_by == "duration":
+        filtered.sort(key=lambda x: x["duration_mins"])
+    elif st.session_state.sort_by == "airline":
+        filtered.sort(key=lambda x: x["airline"])
+        
+    return filtered
