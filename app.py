@@ -2,10 +2,10 @@ import streamlit as st
 from datetime import datetime, timedelta
 import random
 import pandas as pd
+import time
+import base64
 from PIL import Image
 import io
-import requests
-import time
 
 # Set page config
 st.set_page_config(
@@ -25,36 +25,37 @@ class FlightBookingApp:
             "Lucknow (LKO)", "Kochi (COK)", "Guwahati (GAU)"
         ]
         
+        # Airline data with logos encoded as base64 to avoid external URL dependencies
         self.airlines = {
             "IndiGo": {
                 "code": "6E", 
                 "color": "#0052CC",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/IndiGo_Airlines_logo.svg/512px-IndiGo_Airlines_logo.svg.png"
+                "logo": self.get_indigo_logo()
             },
             "Air India": {
                 "code": "AI", 
                 "color": "#e31837",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Air_India_Logo.svg/512px-Air_India_Logo.svg.png"
+                "logo": self.get_air_india_logo()
             },
             "SpiceJet": {
                 "code": "SG", 
                 "color": "#ff4e00",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/SpiceJet_logo.svg/512px-SpiceJet_logo.svg.png"
+                "logo": self.get_spicejet_logo()
             },
             "Vistara": {
                 "code": "UK", 
                 "color": "#4b286d",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Vistara_Logo.svg/512px-Vistara_Logo.svg.png"
+                "logo": self.get_vistara_logo()
             },
             "Akasa Air": {
                 "code": "QP", 
                 "color": "#FF6D38",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Akasa_Air_logo.svg"
+                "logo": self.get_akasa_logo()
             },
             "Alliance Air": {
                 "code": "9I", 
                 "color": "#2B3990",
-                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Alliance_Air_India_Logo.svg/512px-Alliance_Air_India_Logo.svg.png"
+                "logo": self.get_alliance_logo()
             }
         }
         
@@ -93,6 +94,24 @@ class FlightBookingApp:
         # Initialize session state
         self.initialize_session_state()
     
+    def get_indigo_logo(self):
+        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNjAiPjxwYXRoIGZpbGw9IiMwMDUyQ0MiIGQ9Ik0yMCwxMGg2MHY0MEgyMFYxMHoiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMzUsMjBoMzB2MjBIMzVWMjB6Ii8+PHBhdGggZmlsbD0iIzAwNTJDQyIgZD0iTTQ1LDI1aDEwdjEwSDQ1VjI1eiIvPjxwYXRoIGZpbGw9IiMwMDUyQ0MiIGQ9Ik0xMDUsMzBsLTUtMTBoMTBMMTA1LDMweiIvPjxwYXRoIGZpbGw9IiMwMDUyQ0MiIGQ9Ik0xMjUsMjBoLTE1djIwaDVWMzBoMTBjMywwLDUtMiw1LTV2MGMwLTMtMi01LTUtNVoiLz48cGF0aCBmaWxsPSIjMDA1MkNDIiBkPSJNMTQwLDIwaC01djIwaDVWMjBaIi8+PHBhdGggZmlsbD0iIzAwNTJDQyIgZD0iTTE2MCwyMGgtMTV2MjBoNVYzMGgxMGMzLDAsNS0yLDUtNXYwYzAtMy0yLTUtNS01WiIvPjwvc3ZnPg=="
+    
+    def get_air_india_logo(self):
+        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNjAiPjxwYXRoIGZpbGw9IiNlMzE4MzciIGQ9Ik0xMDAsMTBjMjAsMCw0MCwxMCw0MCwzMGMwLDUtMTAsNS0xMCwwYzAtMTUtMTUtMjAtMzAtMjBzLTMwLDUtMzAsMjBjMCw1LTEwLDUtMTAsMEMxMCwyMCwzMCwxMCwxMDAsMTBaIi8+PHBhdGggZmlsbD0iI2UzMTgzNyIgZD0iTTUwLDQ1aDEwMHY1SDUwVjQ1WiIvPjxjaXJjbGUgZmlsbD0iI2UzMTgzNyIgY3g9IjEwMCIgY3k9IjMwIiByPSIxMCIvPjwvc3ZnPg=="
+    
+    def get_spicejet_logo(self):
+        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNjAiPjxwYXRoIGZpbGw9IiNmZjRlMDAiIGQ9Ik0yMCwxMGg4MHY0MEgyMFYxMHoiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMzUsMjVoNTB2MTBIMzVWMjV6Ii8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTExMCwzMGwtMTAtMjBoMjBMMTEwLDMweiIvPjxwYXRoIGZpbGw9IiNmZjRlMDAiIGQ9Ik0xMzAsMTBoNDB2NDBIMTMwVjEweiIvPjxwYXRoIGZpbGw9IiNmZmYiIGQ9Ik0xNDAsMjVoMjB2MTBoLTIwVjI1eiIvPjwvc3ZnPg=="
+    
+    def get_vistara_logo(self):
+        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNjAiPjxwYXRoIGZpbGw9IiM0YjI4NmQiIGQ9Ik0yMCwxMGgxNjB2NDBIMjBWMTB6Ii8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEwMCwxNWMxMCwwLDIwLDUsMjAsMTVjMCwxMC0xMCwxNS0yMCwxNXMtMjAtNS0yMC0xNUExNSwxNSwwLDAsMSwxMDAsMTVaIi8+PHBhdGggZmlsbD0iIzRiMjg2ZCIgZD0iTTEwMCwyNWM1LDAsNSw1LDAsNXMtNS01LDAtNVoiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNNTAsMjBoMjB2MjBINTBWMjB6Ii8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEzMCwyMGgyMHYyMGgtMjBWMjB6Ii8+PC9zdmc+"
+    
+    def get_akasa_logo(self):
+        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNjAiPjxwYXRoIGZpbGw9IiNGRjZEMzgiIGQ9Ik0yMCwxMGgxNjB2NDBIMjBWMTB6Ii8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTM1LDIwTDUwLDQwSDIwTDM1LDIweiIvPjxwYXRoIGZpbGw9IiNmZmYiIGQ9Ik03MCwyMEw4NSw0MEg1NUw3MCwyMHoiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTA1LDIwTDEyMCw0MEg5MEwxMDUsMjB6Ii8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTE0MCwyMEwxNTUsNDBIMTI1TDE0MCwyMHoiLz48L3N2Zz4="
+    
+    def get_alliance_logo(self):
+        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgNjAiPjxwYXRoIGZpbGw9IiMyQjM5OTAiIGQ9Ik0yMCwxMGgxNjB2NDBIMjBWMTB6Ii8+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTQwLDMwYzAtNSw1LTEwLDEwLTEwaDEwMGM1LDAsMTAsNSwxMCwxMHMtNSwxMC0xMCwxMEg1MEM0NSw0MCw0MCwzNSw0MCwzMFoiLz48cGF0aCBmaWxsPSIjMkIzOTkwIiBkPSJNNjAsMjVoMjB2MTBINjBWMjV6Ii8+PHBhdGggZmlsbD0iIzJCMzk5MCIgZD0iTTEwMCwyNWgyMHYxMGgtMjBWMjV6Ii8+PHBhdGggZmlsbD0iIzJCMzk5MCIgZD0iTTE0MCwyNWgyMHYxMGgtMjBWMjV6Ii8+PC9zdmc+"
+    
     def initialize_session_state(self):
         """Initialize session state variables"""
         if 'search_performed' not in st.session_state:
@@ -115,6 +134,12 @@ class FlightBookingApp:
             st.session_state.filter_airlines = list(self.airlines.keys())
         if 'filter_classes' not in st.session_state:
             st.session_state.filter_classes = self.fare_classes.copy()
+        if 'show_fare_rules' not in st.session_state:
+            st.session_state.show_fare_rules = {}
+        if 'show_fare_breakup' not in st.session_state:
+            st.session_state.show_fare_breakup = {}
+        if 'progress_step' not in st.session_state:
+            st.session_state.progress_step = 1
     
     def apply_custom_css(self):
         """Apply custom CSS styling for better UI"""
@@ -126,7 +151,7 @@ class FlightBookingApp:
             }
             
             .app-header {
-                background: linear-gradient(135deg, #0d47a1, #42a5f5);
+                background: linear-gradient(135deg, #FF6D38, #FF4E00);
                 padding: 1.5rem;
                 color: white;
                 border-radius: 0px;
@@ -158,8 +183,8 @@ class FlightBookingApp:
             }
             
             .selected-flight {
-                border: 2px solid #1976d2;
-                background-color: #f5f9ff;
+                border: 2px solid #FF6D38;
+                background-color: #fff9f5;
             }
             
             .flight-time {
@@ -172,7 +197,7 @@ class FlightBookingApp:
             }
             
             .flight-price {
-                color: #d32f2f;
+                color: #FF4E00;
                 font-size: 1.3rem;
                 font-weight: bold;
             }
@@ -191,8 +216,8 @@ class FlightBookingApp:
             }
             
             .flight-class-tag {
-                background-color: #e3f2fd;
-                color: #1976d2;
+                background-color: #fff0eb;
+                color: #FF4E00;
                 padding: 0.2rem 0.6rem;
                 border-radius: 4px;
                 font-size: 0.8rem;
@@ -222,8 +247,8 @@ class FlightBookingApp:
             }
             
             .step-circle {
-                width: 30px;
-                height: 30px;
+                width: 35px;
+                height: 35px;
                 border-radius: 50%;
                 background-color: #e0e0e0;
                 display: flex;
@@ -235,7 +260,12 @@ class FlightBookingApp:
             }
             
             .active-step .step-circle {
-                background-color: #1976d2;
+                background-color: #FF4E00;
+                color: white;
+            }
+            
+            .completed-step .step-circle {
+                background-color: #4CAF50;
                 color: white;
             }
             
@@ -246,18 +276,33 @@ class FlightBookingApp:
             }
             
             .active-step .step-title {
-                color: #1976d2;
+                color: #FF4E00;
+                font-weight: bold;
+            }
+            
+            .completed-step .step-title {
+                color: #4CAF50;
                 font-weight: bold;
             }
             
             .progress-line {
                 position: absolute;
-                top: 15px;
+                top: 17px;
                 left: 15%;
                 right: 15%;
                 height: 2px;
                 background-color: #e0e0e0;
                 z-index: 1;
+            }
+            
+            .progress-line-filled {
+                position: absolute;
+                top: 17px;
+                left: 15%;
+                height: 2px;
+                background-color: #4CAF50;
+                z-index: 1;
+                transition: width 0.5s;
             }
             
             .divider {
@@ -279,11 +324,11 @@ class FlightBookingApp:
             }
             
             .price-breakdown {
-                background-color: #f5f9ff;
+                background-color: #fff9f5;
                 padding: 1rem;
                 border-radius: 8px;
                 margin-top: 1rem;
-                border: 1px solid #e3f2fd;
+                border: 1px solid #ffe0d0;
             }
             
             .fare-rules {
@@ -294,16 +339,89 @@ class FlightBookingApp:
                 border: 1px solid #e0e0e0;
             }
             
+            .fare-breakup {
+                background-color: #f9f9f9;
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 0.5rem;
+                border: 1px solid #e0e0e0;
+            }
+            
+            .fare-rule-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            
+            .fare-rule-item:last-child {
+                border-bottom: none;
+            }
+            
+            .fare-breakup-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            
+            .fare-breakup-item:last-child {
+                border-bottom: none;
+                font-weight: bold;
+            }
+            
             /* Button styling */
-            .stButton>button {
-                background-color: #1976d2;
+            .primary-button {
+                background-color: #FF4E00;
                 color: white;
                 border: none;
-                padding: 0.5rem 1rem;
+                padding: 10px 20px;
                 border-radius: 4px;
                 font-weight: bold;
+                cursor: pointer;
                 width: 100%;
-                height: 2.5rem;
+                text-align: center;
+                transition: background-color 0.3s;
+            }
+            
+            .primary-button:hover {
+                background-color: #E84600;
+            }
+            
+            .secondary-button {
+                background-color: #f0f0f0;
+                color: #333;
+                border: 1px solid #ddd;
+                padding: 8px 16px;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+            
+            .secondary-button:hover {
+                background-color: #e0e0e0;
+            }
+            
+            .text-button {
+                background: none;
+                color: #FF4E00;
+                border: none;
+                padding: 0;
+                font: inherit;
+                cursor: pointer;
+                outline: inherit;
+                text-decoration: underline;
+            }
+            
+            .link-button {
+                color: #FF4E00;
+                text-decoration: none;
+                font-size: 0.9rem;
+                cursor: pointer;
+            }
+            
+            .link-button:hover {
+                text-decoration: underline;
             }
             
             /* Add animation to loading spinner */
@@ -317,9 +435,88 @@ class FlightBookingApp:
                 width: 36px;
                 height: 36px;
                 border-radius: 50%;
-                border-left-color: #1976d2;
+                border-left-color: #FF4E00;
                 animation: spin 1s linear infinite;
                 margin: 0 auto;
+            }
+            
+            .logo-img {
+                max-height: 30px;
+                max-width: 80px;
+            }
+            
+            .airline-logo-container {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            
+            /* Booking summary styles */
+            .booking-summary {
+                background-color: white;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+                padding: 1rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .booking-flight-info {
+                display: flex;
+                align-items: center;
+                margin-bottom: 1rem;
+                padding-bottom: 1rem;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .booking-flight-info:last-child {
+                margin-bottom: 0;
+                padding-bottom: 0;
+                border-bottom: none;
+            }
+            
+            .passenger-form {
+                background-color: white;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .passenger-section {
+                margin-bottom: 1.5rem;
+                padding-bottom: 1.5rem;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .passenger-section:last-child {
+                margin-bottom: 0;
+                padding-bottom: 0;
+                border-bottom: none;
+            }
+            
+            .form-section-title {
+                font-size: 1.2rem;
+                font-weight: bold;
+                margin-bottom: 1rem;
+                color: #333;
+            }
+            
+            .payment-method {
+                padding: 1rem;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                margin-bottom: 1rem;
+                cursor: pointer;
+                transition: border-color 0.3s;
+            }
+            
+            .payment-method:hover {
+                border-color: #FF4E00;
+            }
+            
+            .payment-method.selected {
+                border-color: #FF4E00;
+                background-color: #fff9f5;
             }
             
             /* Responsive fixes */
@@ -335,445 +532,136 @@ class FlightBookingApp:
                 }
             }
             
+            /* Styling for the fare details toggle */
+            .fare-details-toggle {
+                display: flex;
+                justify-content: space-between;
+                padding: 0.5rem 0;
+                cursor: pointer;
+                font-size: 0.9rem;
+                color: #FF4E00;
+            }
+            
+            /* Arrival and departure styling */
+            .date-info {
+                font-size: 0.8rem;
+                color: #616161;
+                margin-top: 2px;
+            }
+            
+            /* Tooltip styling */
+            .tooltip {
+                position: relative;
+                display: inline-block;
+                cursor: pointer;
+            }
+            
+            .tooltip .tooltiptext {
+                visibility: hidden;
+                width: 200px;
+                background-color: #333;
+                color: white;
+                text-align: center;
+                border-radius: 4px;
+                padding: 5px;
+                position: absolute;
+                z-index: 1;
+                bottom: 125%;
+                left: 50%;
+                margin-left: -100px;
+                opacity: 0;
+                transition: opacity 0.3s;
+                font-size: 0.8rem;
+            }
+            
+            .tooltip:hover .tooltiptext {
+                visibility: visible;
+                opacity: 1;
+            }
+            
             /* Hide default Streamlit elements */
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             
-            /* Style expander headers */
-            .st-eb {
-                font-weight: bold !important;
-                color: #1976d2 !important;
+            /* Improve form inputs */
+            .stTextInput input, .stSelectbox select, .stDateInput input {
+                padding: 0.5rem;
+                border-radius: 4px;
+                border: 1px solid #ddd;
             }
             
-            /* Improve the tabs */
-            .stTabs [data-baseweb="tab-list"] {
-                gap: 8px;
-            }
-            
-            .stTabs [data-baseweb="tab"] {
-                background-color: white;
-                border-radius: 4px 4px 0 0;
-                border: 1px solid #e0e0e0;
-                border-bottom: none;
-                padding: 0.5rem 1rem;
-            }
-            
-            .stTabs [aria-selected="true"] {
-                background-color: #1976d2 !important;
-                color: white !important;
+            .stTextInput input:focus, .stSelectbox select:focus, .stDateInput input:focus {
+                border-color: #FF4E00;
+                box-shadow: 0 0 0 2px rgba(255, 78, 0, 0.2);
             }
         </style>
         """, unsafe_allow_html=True)
 
-    def run(self):
-        """Main function to run the app"""
-        # Display app header
-        st.markdown('<div class="app-header"><h1>✈️ Flight Booking App</h1></div>', unsafe_allow_html=True)
+    def generate_flights(self, from_city, to_city, date, count=10):
+        """Generate random flight data"""
+        flights = []
         
-        # If already in booking flow, show booking details
-        if st.session_state.view_booking:
-            self.display_booking_page()
-            return
-            
-        # Show search form
-        self.display_search_form()
+        # Get random times throughout the day
+        departure_times = sorted([f"{random.randint(0, 23):02d}:{random.randint(0, 59):02d}" for _ in range(count)])
         
-        # Show flight results if search performed
-        if st.session_state.search_performed:
-            self.display_flight_results()
-
-    def display_search_form(self):
-        """Display the flight search form"""
-        with st.container():
-            st.markdown('<div class="search-form">', unsafe_allow_html=True)
+        for i in range(count):
+            # Randomly select an airline
+            airline = random.choice(list(self.airlines.keys()))
+            airline_code = self.airlines[airline]["code"]
             
-            # Trip type selection
-            trip_type = st.radio(
-                "Trip Type",
-                ["One Way", "Round Trip"],
-                horizontal=True,
-                key="trip_type"
-            )
+            # Generate random flight number
+            flight_number = f"{airline_code} {random.randint(100, 999)}"
             
-            # City selection
-            col1, col2 = st.columns(2)
-            with col1:
-                from_city = st.selectbox("From", self.cities, index=0)
+            # Assign departure time
+            departure_time = departure_times[i]
             
-            with col2:
-                # Filter out the from_city to avoid same source and destination
-                to_cities = [city for city in self.cities if city != from_city]
-                to_city = st.selectbox("To", to_cities, index=0)
+            # Generate duration between 1h to 4h
+            duration_mins = random.randint(60, 240)
             
-            # Date selection
-            col1, col2 = st.columns(2)
-            with col1:
-                today = datetime.now()
-                departure_date = st.date_input(
-                    "Departure Date",
-                    min_value=today,
-                    value=today + timedelta(days=3),
-                    key="departure_date"
-                )
+            # Calculate arrival time
+            departure_dt = datetime.strptime(departure_time, "%H:%M")
+            arrival_dt = departure_dt + timedelta(minutes=duration_mins)
+            arrival_time = arrival_dt.strftime("%H:%M")
             
-            with col2:
-                if trip_type == "Round Trip":
-                    min_return_date = departure_date + timedelta(days=1)
-                    return_date = st.date_input(
-                        "Return Date",
-                        min_value=min_return_date,
-                        value=min_return_date + timedelta(days=7),
-                        key="return_date"
-                    )
-                else:
-                    st.markdown("<br>", unsafe_allow_html=True)
+            # Randomly select fare class
+            fare_class = random.choice(self.fare_classes)
             
-            # Passenger selection
-            col1, col2 = st.columns(2)
-            with col1:
-                passengers = st.number_input(
-                    "Passengers",
-                    min_value=1,
-                    max_value=9,
-                    value=st.session_state.passengers,
-                    key="passenger_count"
-                )
-                st.session_state.passengers = passengers
+            # Assign price based on class
+            if fare_class == "Economy":
+                price = random.randint(2500, 5000)
+            elif fare_class == "Premium Economy":
+                price = random.randint(6000, 9000)
+            else:  # Business
+                price = random.randint(12000, 18000)
             
-            with col2:
-                travel_class = st.selectbox(
-                    "Class",
-                    ["All Classes", "Economy", "Premium Economy", "Business"],
-                    index=0,
-                    key="travel_class"
-                )
+            # Create a flight
+            flight = {
+                "from_city": from_city,
+                "to_city": to_city,
+                "date": date,
+                "departure_time": departure_time,
+                "arrival_time": arrival_time,
+                "airline": airline,
+                "flight_number": flight_number,
+                "price": price,
+                "class": fare_class,
+                "duration": self.format_duration(duration_mins),
+                "duration_mins": duration_mins
+            }
             
-            # Search button
-            if st.button("SEARCH FLIGHTS", key="search_button"):
-                st.session_state.search_performed = True
-                
-                # Generate flight results
-                if travel_class == "All Classes":
-                    filter_class = None
-                else:
-                    filter_class = travel_class
-                
-                # Show loading spinner
-                with st.spinner("Searching for the best flights..."):
-                    # Generate outbound flight results
-                    st.session_state.flight_results = self.generate_flights(
-                        from_city, to_city, departure_date, 12
-                    )
-                    
-                    # Generate return flight results if round trip
-                    if trip_type == "Round Trip":
-                        st.session_state.return_flight_results = self.generate_flights(
-                            to_city, from_city, return_date, 12
-                        )
-                    else:
-                        st.session_state.return_flight_results = []
-                    
-                    # Reset selected flights
-                    st.session_state.selected_flight = None
-                    st.session_state.selected_return_flight = None
-                    
-                    # Simulate a short delay for realism
-                    time.sleep(1.5)
-                
-                st.experimental_rerun()
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    def display_flight_results(self):
-        """Display flight search results"""
-        # Reset view_booking if back button was used
-        st.session_state.view_booking = False
+            flights.append(flight)
         
-        # Check if we have results
-        if not st.session_state.flight_results:
-            st.warning("No flights found. Please try different search criteria.")
-            return
-            
-        # Display filter and sort options
-        col1, col2, col3 = st.columns([1, 2, 1])
+        return flights
+    
+    def filter_and_sort_flights(self, flights):
+        """Filter and sort flight results based on user preferences"""
+        # Filter by airline
+        filtered = [f for f in flights if f["airline"] in st.session_state.filter_airlines]
         
-        with col1:
-            st.markdown("<h3>Filters</h3>", unsafe_allow_html=True)
-            
-            with st.container():
-                st.markdown('<div class="filter-panel">', unsafe_allow_html=True)
-                
-                # Airline filters
-                st.subheader("Airlines")
-                for airline in self.airlines:
-                    is_selected = airline in st.session_state.filter_airlines
-                    if st.checkbox(airline, value=is_selected, key=f"airline_{airline}"):
-                        if airline not in st.session_state.filter_airlines:
-                            st.session_state.filter_airlines.append(airline)
-                    else:
-                        if airline in st.session_state.filter_airlines:
-                            st.session_state.filter_airlines.remove(airline)
-                
-                # Class filters
-                st.subheader("Class")
-                for fare_class in self.fare_classes:
-                    is_selected = fare_class in st.session_state.filter_classes
-                    if st.checkbox(fare_class, value=is_selected, key=f"class_{fare_class}"):
-                        if fare_class not in st.session_state.filter_classes:
-                            st.session_state.filter_classes.append(fare_class)
-                    else:
-                        if fare_class in st.session_state.filter_classes:
-                            st.session_state.filter_classes.remove(fare_class)
-                
-                st.markdown('</div>', unsafe_allow_html=True)
+        # Filter by class
+        filtered = [f for f in filtered if f["class"] in st.session_state.filter_classes]
         
-        with col2:
-            # Tabs for outbound and return flights
-            if st.session_state.return_flight_results:
-                tabs = st.tabs(["Outbound Flight", "Return Flight"])
-                
-                # Outbound flight tab
-                with tabs[0]:
-                    st.markdown("<h3>Outbound Flights</h3>", unsafe_allow_html=True)
-                    
-                    # Sort options
-                    sort_by = st.selectbox(
-                        "Sort By",
-                        ["Price (low to high)", "Duration (short to long)", "Departure (early to late)", "Arrival (early to late)"],
-                        index=0,
-                        key="sort_outbound"
-                    )
-                    
-                    if "Price" in sort_by:
-                        st.session_state.sort_by = "price"
-                    elif "Duration" in sort_by:
-                        st.session_state.sort_by = "duration"
-                    elif "Departure" in sort_by:
-                        st.session_state.sort_by = "departure"
-                    elif "Arrival" in sort_by:
-                        st.session_state.sort_by = "arrival"
-                    
-                    # Filter and display flights
-                    filtered_flights = self.filter_and_sort_flights(st.session_state.flight_results)
-                    
-                    if not filtered_flights:
-                        st.warning("No flights match your filters. Please adjust your criteria.")
-                    else:
-                        for idx, flight in enumerate(filtered_flights):
-                            self.display_flight_card(flight, idx, is_return=False)
-                
-                # Return flight tab
-                with tabs[1]:
-                    st.markdown("<h3>Return Flights</h3>", unsafe_allow_html=True)
-                    
-                    # Sort options
-                    sort_by = st.selectbox(
-                        "Sort By",
-                        ["Price (low to high)", "Duration (short to long)", "Departure (early to late)", "Arrival (early to late)"],
-                        index=0,
-                        key="sort_return"
-                    )
-                    
-                    if "Price" in sort_by:
-                        st.session_state.sort_by = "price"
-                    elif "Duration" in sort_by:
-                        st.session_state.sort_by = "duration"
-                    elif "Departure" in sort_by:
-                        st.session_state.sort_by = "departure"
-                    elif "Arrival" in sort_by:
-                        st.session_state.sort_by = "arrival"
-                    
-                    # Filter and display flights
-                    filtered_return_flights = self.filter_and_sort_flights(st.session_state.return_flight_results)
-                    
-                    if not filtered_return_flights:
-                        st.warning("No flights match your filters. Please adjust your criteria.")
-                    else:
-                        for idx, flight in enumerate(filtered_return_flights):
-                            self.display_flight_card(flight, idx, is_return=True)
-            else:
-                # Only outbound flights
-                st.markdown("<h3>Available Flights</h3>", unsafe_allow_html=True)
-                
-                # Sort options
-                sort_by = st.selectbox(
-                    "Sort By",
-                    ["Price (low to high)", "Duration (short to long)", "Departure (early to late)", "Arrival (early to late)"],
-                    index=0,
-                    key="sort_outbound"
-                )
-                
-                if "Price" in sort_by:
-                    st.session_state.sort_by = "price"
-                elif "Duration" in sort_by:
-                    st.session_state.sort_by = "duration"
-                elif "Departure" in sort_by:
-                    st.session_state.sort_by = "departure"
-                elif "Arrival" in sort_by:
-                    st.session_state.sort_by = "arrival"
-                
-                # Filter and display flights
-                filtered_flights = self.filter_and_sort_flights(st.session_state.flight_results)
-                
-                if not filtered_flights:
-                    st.warning("No flights match your filters. Please adjust your criteria.")
-                else:
-                    for idx, flight in enumerate(filtered_flights):
-                        self.display_flight_card(flight, idx, is_return=False)
-        
-        with col3:
-            # Booking summary and proceed button
-            if st.session_state.selected_flight is not None:
-                # Display selected flight summary
-                st.markdown("<h3>Selected Flights</h3>", unsafe_allow_html=True)
-                
-                # Calculate total price
-                total_price = 0
-                
-                # Calculate outbound flight price
-                if st.session_state.selected_flight is not None:
-                    flight = st.session_state.flight_results[st.session_state.selected_flight]
-                    base_fare = flight['price']
-                    taxes = int(base_fare * 0.18)
-                    convenience_fee = 350
-                    flight_price = (base_fare + taxes + convenience_fee) * st.session_state.passengers
-                    total_price += flight_price
-                
-                # Calculate return flight price if selected
-                if st.session_state.return_flight_results and st.session_state.selected_return_flight is not None:
-                    flight = st.session_state.return_flight_results[st.session_state.selected_return_flight]
-                    base_fare = flight['price']
-                    taxes = int(base_fare * 0.18)
-                    convenience_fee = 350
-                    flight_price = (base_fare + taxes + convenience_fee) * st.session_state.passengers
-                    total_price += flight_price
-                
-                # Display price and proceed button
-                st.markdown(f"<div class='price-breakdown'><h4>Price Summary</h4>", unsafe_allow_html=True)
-                st.markdown(f"<p>Passengers: {st.session_state.passengers}</p>", unsafe_allow_html=True)
-                st.markdown(f"<p>Total Fare: <span class='flight-price'>₹{total_price:,}</span></p>", unsafe_allow_html=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Check if return flight is required but not selected
-                proceed_disabled = False
-                if st.session_state.return_flight_results and st.session_state.selected_return_flight is None:
-                    st.warning("Please select a return flight to proceed.")
-                    proceed_disabled = True
-                
-                # Proceed button
-                if st.button("CONTINUE BOOKING", disabled=proceed_disabled):
-                    st.session_state.view_booking = True
-                    st.experimental_rerun()
-
-    def display_booking_page(self):
-        """Display booking and passenger details page"""
-        # Add back button
-        if st.button("← Back to Flight Selection"):
-            st.session_state.view_booking = False
-            st.experimental_rerun()
-        
-        # Display booking summary
-        self.display_booking_summary()
-        
-        # Passenger details form
-        st.markdown("<h3>Passenger Details</h3>", unsafe_allow_html=True)
-        
-        for i in range(st.session_state.passengers):
-            st.markdown(f"<h4>Passenger {i+1}</h4>", unsafe_allow_html=True)
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.selectbox("Title", ["Mr.", "Mrs.", "Ms.", "Dr."], key=f"title_{i}")
-            
-            with col2:
-                st.text_input("First Name", key=f"first_name_{i}")
-            
-            with col3:
-                st.text_input("Last Name", key=f"last_name_{i}")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.date_input("Date of Birth", datetime.now() - timedelta(days=365*25), key=f"dob_{i}")
-            
-            with col2:
-                st.text_input("Nationality", "Indian", key=f"nationality_{i}")
-            
-            # Add more fields as needed
-            st.markdown("<hr>", unsafe_allow_html=True)
-        
-        # Contact details
-        st.markdown("<h3>Contact Details</h3>", unsafe_allow_html=True)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.text_input("Email Address")
-        
-        with col2:
-            st.text_input("Mobile Number")
-        
-        # Complete booking button
-        if st.button("PROCEED TO PAYMENT", key="complete_booking"):
-            st.success("Booking details saved! Redirecting to payment page...")
-            # In a real app, this would redirect to a payment gateway
-
-    def display_flight_card(self, flight, index, is_return=False):
-        """Display a flight card with all details"""
-        airline = flight["airline"]
-        flight_number = flight["flight_number"]
-        duration_mins = self.get_flight_time_in_minutes(flight["departure_time"], flight["arrival_time"])
-        duration_text = self.format_duration(duration_mins)
-        
-        # Calculate fare details
-        base_fare = flight['price']
-        taxes = int(base_fare * 0.18)  # GST
-        convenience_fee = 350
-        total_fare = base_fare + taxes + convenience_fee
-        
-        # Check if this flight is selected
-        is_selected = (is_return and st.session_state.selected_return_flight == index) or \
-                     (not is_return and st.session_state.selected_flight == index)
-        
-        # Create flight card container
-        card_style = "flight-card selected-flight" if is_selected else "flight-card"
-        
-        with st.container():
-            st.markdown(f"<div class='{card_style}'>", unsafe_allow_html=True)
-            
-            # Top row with airline and price
-            col1, col2, col3 = st.columns([3, 5, 2])
-            
-            with col1:
-                # Display airline name and flight number
-                st.markdown(f"<div class='airline-name'>{airline}</div>", unsafe_allow_html=True)
-                st.markdown(f"<div class='flight-detail'>{flight_number}</div>", unsafe_allow_html=True)
-                st.markdown(f"<span class='flight-class-tag'>{flight['class']}</span>", unsafe_allow_html=True)
-            
-            with col2:
-                # Flight times and route with duration
-                subcol1, subcol2, subcol3 = st.columns([2, 1, 2])
-                
-                with subcol1:
-                    st.markdown(f"<div class='flight-time'>{flight['departure_time']}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='flight-detail'>{flight['from_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
-                    airport_code = flight['from_city'].split('(')[1].replace(')', '')
-                    st.markdown(f"<div class='flight-detail'>{airport_code}</div>", unsafe_allow_html=True)
-                
-                with subcol2:
-                    st.markdown(f"<div class='flight-duration'>{duration_text}</div>", unsafe_allow_html=True)
-                    st.markdown("→", unsafe_allow_html=True)
-                
-                with subcol3:
-                    st.markdown(f"<div class='flight-time'>{flight['arrival_time']}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='flight-detail'>{flight['to_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
-                    airport_code = flight['to_city'].split('(')[1].replace(')', '')
-                    st.markdown(f"<div class='flight-detail'>{airport_code}</div>", unsafe_allow_html=True)
-            
-            with col3:
-                st.markdown(f"<div class='flight-price'>₹{total_fare:,}</div>", unsafe_allow_html=True)
-                st.markdown("<div class='flight-detail'>per passenger</div>", unsafe_allow_html=True)
-            
-            # Expandable sections
-            col1, col2 = st
+        # Sort flights
+        if st.session_state.sort_by == "price":
+            filtered.sort(key=lambda x: x["price"])
+        elif st.session_state.sort_
