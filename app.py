@@ -653,8 +653,7 @@ class FlightBookingApp:
         
         return flights
     
-    def filter_and_sort_flights(self, flights):
-        
+    def filter_and_sort_flights(user_preferences):
     """Filter and sort flight results based on user preferences"""
     
     # Filter by airline
