@@ -654,15 +654,15 @@ class FlightBookingApp:
         return flights
     
     def filter_and_sort_flights(self, flights):
-        """Filter and sort flight results based on user preferences"""
-        # Filter by airline
-        filtered = [f for f in flights if f["airline"] in st.session_state.filter_airlines]
-        
-        # Filter by class
-        filtered = [f for f in filtered if f["class"] in st.session_state.filter_classes]
-        
-        # Sort flights
-       if st.session_state.sort_by == "price":
+    """Filter and sort flight results based on user preferences"""
+    # Filter by airline
+    filtered = [f for f in flights if f["airline"] in st.session_state.filter_airlines]
+    
+    # Filter by class
+    filtered = [f for f in filtered if f["class"] in st.session_state.filter_classes]
+    
+    # Sort flights
+    if st.session_state.sort_by == "price":
         filtered.sort(key=lambda x: x["price"])
     elif st.session_state.sort_by == "departure":
         filtered.sort(key=lambda x: x["departure_time"])
@@ -670,5 +670,5 @@ class FlightBookingApp:
         filtered.sort(key=lambda x: x["duration_mins"])
     elif st.session_state.sort_by == "airline":
         filtered.sort(key=lambda x: x["airline"])
-        
+    
     return filtered
