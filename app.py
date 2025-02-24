@@ -653,26 +653,23 @@ class FlightBookingApp:
         
         return flights
     
-    def filter_and_sort_flights(user_preferences):
+  def filter_and_sort_flights(user_preferences):
     """Filter and sort flight results based on user preferences"""
     
-    # Code to filter and sort flights goes here
-    # For example:
+    # Code to filter and sort flights based on initial user preferences
     flights = get_flights()  # Assuming get_flights() retrieves available flights
     
-    # Example logic for filtering and sorting
+    # Example logic for filtering flights based on preferences
     filtered_flights = [flight for flight in flights if flight.matches_preferences(user_preferences)]
     sorted_flights = sorted(filtered_flights, key=lambda flight: flight.price)  # Sort by price
     
-    return sorted_flights
-    
-    # Filter by airline
+    # Additional filtering by airline and class using session state
     filtered = [f for f in flights if f["airline"] in st.session_state.filter_airlines]
     
     # Filter by class
     filtered = [f for f in filtered if f["class"] in st.session_state.filter_classes]
     
-    # Sort flights
+    # Sort flights based on user-selected criteria
     if st.session_state.sort_by == "price":
         filtered.sort(key=lambda x: x["price"])
     elif st.session_state.sort_by == "departure":
