@@ -5,38 +5,18 @@ import pandas as pd
 from PIL import Image
 import io
 import requests
-from streamlit_extras.stylable_container import stylable_container
 import time
 
-# Try to import streamlit_extras, if not available, define a placeholder
-try:
-    from streamlit_extras.colored_header import colored_header
-    from streamlit_extras.card import card
-except ImportError:
-    # Define placeholder functions if imports aren't available
-    def colored_header(label, description=None, color_name=None):
-        st.header(label)
-        if description:
-            st.write(description)
-    
-    def card(title, text, image=None, url=None):
-        st.subheader(title)
-        st.write(text)
-        if image:
-            st.image(image)
-        if url:
-            st.markdown(f"[More info]({url})")
+# Set page config
+st.set_page_config(
+    page_title="Flight Booking App",
+    page_icon="✈️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-class EnhancedFlightBookingApp:
+class FlightBookingApp:
     def __init__(self):
-        # Set page config
-        st.set_page_config(
-            page_title="Flight Booking App",
-            page_icon="✈️",
-            layout="wide",
-            initial_sidebar_state="collapsed"
-        )
-        
         # Initialize city and airline data
         self.cities = [
             "Mumbai (BOM)", "Delhi (DEL)", "Bangalore (BLR)", 
@@ -107,9 +87,14 @@ class EnhancedFlightBookingApp:
             }
         }
         
+        # Apply custom CSS
         self.apply_custom_css()
         
-        # Session state initialization
+        # Initialize session state
+        self.initialize_session_state()
+    
+    def initialize_session_state(self):
+        """Initialize session state variables"""
         if 'search_performed' not in st.session_state:
             st.session_state.search_performed = False
         if 'selected_flight' not in st.session_state:
@@ -132,7 +117,7 @@ class EnhancedFlightBookingApp:
             st.session_state.filter_classes = self.fare_classes.copy()
     
     def apply_custom_css(self):
-        """Apply custom CSS styling to improve the app's appearance"""
+        """Apply custom CSS styling for better UI"""
         st.markdown("""
         <style>
             .main {
@@ -309,7 +294,7 @@ class EnhancedFlightBookingApp:
                 border: 1px solid #e0e0e0;
             }
             
-            /* Improve button styling */
+            /* Button styling */
             .stButton>button {
                 background-color: #1976d2;
                 color: white;
@@ -380,43 +365,362 @@ class EnhancedFlightBookingApp:
         </style>
         """, unsafe_allow_html=True)
 
-    def load_airline_logo(self, airline):
-        """Load airline logo from URL or use a placeholder"""
-        try:
-            logo_url = self.airlines[airline]["logo_url"]
-            response = requests.get(logo_url)
-            logo = Image.open(io.BytesIO(response.content))
-            return logo
-        except:
-            # Return a simple colored square with airline initials as placeholder
-            color = self.airlines[airline]["color"]
-            code = self.airlines[airline]["code"]
-            # Create placeholder text saying this would be the logo
-            return f"[{code}]"
-
-    def get_flight_time_in_minutes(self, departure_time, arrival_time):
-        """Calculate flight duration in minutes"""
-        dept_hour, dept_min = map(int, departure_time.split(':'))
-        arr_hour, arr_min = map(int, arrival_time.split(':'))
+    def run(self):
+        """Main function to run the app"""
+        # Display app header
+        st.markdown('<div class="app-header"><h1>✈️ Flight Booking App</h1></div>', unsafe_allow_html=True)
         
-        # Handle flights that cross midnight
-        if (arr_hour < dept_hour) or (arr_hour == dept_hour and arr_min < dept_min):
-            arr_hour += 24
+        # If already in booking flow, show booking details
+        if st.session_state.view_booking:
+            self.display_booking_page()
+            return
             
-        # Calculate total minutes
-        dept_total_mins = dept_hour * 60 + dept_min
-        arr_total_mins = arr_hour * 60 + arr_min
+        # Show search form
+        self.display_search_form()
         
-        return arr_total_mins - dept_total_mins
+        # Show flight results if search performed
+        if st.session_state.search_performed:
+            self.display_flight_results()
 
-    def format_duration(self, minutes):
-        """Format duration from minutes to Xh Ym format"""
-        hours = minutes // 60
-        mins = minutes % 60
-        return f"{hours}h {mins}m"
+    def display_search_form(self):
+        """Display the flight search form"""
+        with st.container():
+            st.markdown('<div class="search-form">', unsafe_allow_html=True)
+            
+            # Trip type selection
+            trip_type = st.radio(
+                "Trip Type",
+                ["One Way", "Round Trip"],
+                horizontal=True,
+                key="trip_type"
+            )
+            
+            # City selection
+            col1, col2 = st.columns(2)
+            with col1:
+                from_city = st.selectbox("From", self.cities, index=0)
+            
+            with col2:
+                # Filter out the from_city to avoid same source and destination
+                to_cities = [city for city in self.cities if city != from_city]
+                to_city = st.selectbox("To", to_cities, index=0)
+            
+            # Date selection
+            col1, col2 = st.columns(2)
+            with col1:
+                today = datetime.now()
+                departure_date = st.date_input(
+                    "Departure Date",
+                    min_value=today,
+                    value=today + timedelta(days=3),
+                    key="departure_date"
+                )
+            
+            with col2:
+                if trip_type == "Round Trip":
+                    min_return_date = departure_date + timedelta(days=1)
+                    return_date = st.date_input(
+                        "Return Date",
+                        min_value=min_return_date,
+                        value=min_return_date + timedelta(days=7),
+                        key="return_date"
+                    )
+                else:
+                    st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Passenger selection
+            col1, col2 = st.columns(2)
+            with col1:
+                passengers = st.number_input(
+                    "Passengers",
+                    min_value=1,
+                    max_value=9,
+                    value=st.session_state.passengers,
+                    key="passenger_count"
+                )
+                st.session_state.passengers = passengers
+            
+            with col2:
+                travel_class = st.selectbox(
+                    "Class",
+                    ["All Classes", "Economy", "Premium Economy", "Business"],
+                    index=0,
+                    key="travel_class"
+                )
+            
+            # Search button
+            if st.button("SEARCH FLIGHTS", key="search_button"):
+                st.session_state.search_performed = True
+                
+                # Generate flight results
+                if travel_class == "All Classes":
+                    filter_class = None
+                else:
+                    filter_class = travel_class
+                
+                # Show loading spinner
+                with st.spinner("Searching for the best flights..."):
+                    # Generate outbound flight results
+                    st.session_state.flight_results = self.generate_flights(
+                        from_city, to_city, departure_date, 12
+                    )
+                    
+                    # Generate return flight results if round trip
+                    if trip_type == "Round Trip":
+                        st.session_state.return_flight_results = self.generate_flights(
+                            to_city, from_city, return_date, 12
+                        )
+                    else:
+                        st.session_state.return_flight_results = []
+                    
+                    # Reset selected flights
+                    st.session_state.selected_flight = None
+                    st.session_state.selected_return_flight = None
+                    
+                    # Simulate a short delay for realism
+                    time.sleep(1.5)
+                
+                st.experimental_rerun()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    def display_flight_results(self):
+        """Display flight search results"""
+        # Reset view_booking if back button was used
+        st.session_state.view_booking = False
+        
+        # Check if we have results
+        if not st.session_state.flight_results:
+            st.warning("No flights found. Please try different search criteria.")
+            return
+            
+        # Display filter and sort options
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col1:
+            st.markdown("<h3>Filters</h3>", unsafe_allow_html=True)
+            
+            with st.container():
+                st.markdown('<div class="filter-panel">', unsafe_allow_html=True)
+                
+                # Airline filters
+                st.subheader("Airlines")
+                for airline in self.airlines:
+                    is_selected = airline in st.session_state.filter_airlines
+                    if st.checkbox(airline, value=is_selected, key=f"airline_{airline}"):
+                        if airline not in st.session_state.filter_airlines:
+                            st.session_state.filter_airlines.append(airline)
+                    else:
+                        if airline in st.session_state.filter_airlines:
+                            st.session_state.filter_airlines.remove(airline)
+                
+                # Class filters
+                st.subheader("Class")
+                for fare_class in self.fare_classes:
+                    is_selected = fare_class in st.session_state.filter_classes
+                    if st.checkbox(fare_class, value=is_selected, key=f"class_{fare_class}"):
+                        if fare_class not in st.session_state.filter_classes:
+                            st.session_state.filter_classes.append(fare_class)
+                    else:
+                        if fare_class in st.session_state.filter_classes:
+                            st.session_state.filter_classes.remove(fare_class)
+                
+                st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            # Tabs for outbound and return flights
+            if st.session_state.return_flight_results:
+                tabs = st.tabs(["Outbound Flight", "Return Flight"])
+                
+                # Outbound flight tab
+                with tabs[0]:
+                    st.markdown("<h3>Outbound Flights</h3>", unsafe_allow_html=True)
+                    
+                    # Sort options
+                    sort_by = st.selectbox(
+                        "Sort By",
+                        ["Price (low to high)", "Duration (short to long)", "Departure (early to late)", "Arrival (early to late)"],
+                        index=0,
+                        key="sort_outbound"
+                    )
+                    
+                    if "Price" in sort_by:
+                        st.session_state.sort_by = "price"
+                    elif "Duration" in sort_by:
+                        st.session_state.sort_by = "duration"
+                    elif "Departure" in sort_by:
+                        st.session_state.sort_by = "departure"
+                    elif "Arrival" in sort_by:
+                        st.session_state.sort_by = "arrival"
+                    
+                    # Filter and display flights
+                    filtered_flights = self.filter_and_sort_flights(st.session_state.flight_results)
+                    
+                    if not filtered_flights:
+                        st.warning("No flights match your filters. Please adjust your criteria.")
+                    else:
+                        for idx, flight in enumerate(filtered_flights):
+                            self.display_flight_card(flight, idx, is_return=False)
+                
+                # Return flight tab
+                with tabs[1]:
+                    st.markdown("<h3>Return Flights</h3>", unsafe_allow_html=True)
+                    
+                    # Sort options
+                    sort_by = st.selectbox(
+                        "Sort By",
+                        ["Price (low to high)", "Duration (short to long)", "Departure (early to late)", "Arrival (early to late)"],
+                        index=0,
+                        key="sort_return"
+                    )
+                    
+                    if "Price" in sort_by:
+                        st.session_state.sort_by = "price"
+                    elif "Duration" in sort_by:
+                        st.session_state.sort_by = "duration"
+                    elif "Departure" in sort_by:
+                        st.session_state.sort_by = "departure"
+                    elif "Arrival" in sort_by:
+                        st.session_state.sort_by = "arrival"
+                    
+                    # Filter and display flights
+                    filtered_return_flights = self.filter_and_sort_flights(st.session_state.return_flight_results)
+                    
+                    if not filtered_return_flights:
+                        st.warning("No flights match your filters. Please adjust your criteria.")
+                    else:
+                        for idx, flight in enumerate(filtered_return_flights):
+                            self.display_flight_card(flight, idx, is_return=True)
+            else:
+                # Only outbound flights
+                st.markdown("<h3>Available Flights</h3>", unsafe_allow_html=True)
+                
+                # Sort options
+                sort_by = st.selectbox(
+                    "Sort By",
+                    ["Price (low to high)", "Duration (short to long)", "Departure (early to late)", "Arrival (early to late)"],
+                    index=0,
+                    key="sort_outbound"
+                )
+                
+                if "Price" in sort_by:
+                    st.session_state.sort_by = "price"
+                elif "Duration" in sort_by:
+                    st.session_state.sort_by = "duration"
+                elif "Departure" in sort_by:
+                    st.session_state.sort_by = "departure"
+                elif "Arrival" in sort_by:
+                    st.session_state.sort_by = "arrival"
+                
+                # Filter and display flights
+                filtered_flights = self.filter_and_sort_flights(st.session_state.flight_results)
+                
+                if not filtered_flights:
+                    st.warning("No flights match your filters. Please adjust your criteria.")
+                else:
+                    for idx, flight in enumerate(filtered_flights):
+                        self.display_flight_card(flight, idx, is_return=False)
+        
+        with col3:
+            # Booking summary and proceed button
+            if st.session_state.selected_flight is not None:
+                # Display selected flight summary
+                st.markdown("<h3>Selected Flights</h3>", unsafe_allow_html=True)
+                
+                # Calculate total price
+                total_price = 0
+                
+                # Calculate outbound flight price
+                if st.session_state.selected_flight is not None:
+                    flight = st.session_state.flight_results[st.session_state.selected_flight]
+                    base_fare = flight['price']
+                    taxes = int(base_fare * 0.18)
+                    convenience_fee = 350
+                    flight_price = (base_fare + taxes + convenience_fee) * st.session_state.passengers
+                    total_price += flight_price
+                
+                # Calculate return flight price if selected
+                if st.session_state.return_flight_results and st.session_state.selected_return_flight is not None:
+                    flight = st.session_state.return_flight_results[st.session_state.selected_return_flight]
+                    base_fare = flight['price']
+                    taxes = int(base_fare * 0.18)
+                    convenience_fee = 350
+                    flight_price = (base_fare + taxes + convenience_fee) * st.session_state.passengers
+                    total_price += flight_price
+                
+                # Display price and proceed button
+                st.markdown(f"<div class='price-breakdown'><h4>Price Summary</h4>", unsafe_allow_html=True)
+                st.markdown(f"<p>Passengers: {st.session_state.passengers}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p>Total Fare: <span class='flight-price'>₹{total_price:,}</span></p>", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                # Check if return flight is required but not selected
+                proceed_disabled = False
+                if st.session_state.return_flight_results and st.session_state.selected_return_flight is None:
+                    st.warning("Please select a return flight to proceed.")
+                    proceed_disabled = True
+                
+                # Proceed button
+                if st.button("CONTINUE BOOKING", disabled=proceed_disabled):
+                    st.session_state.view_booking = True
+                    st.experimental_rerun()
+
+    def display_booking_page(self):
+        """Display booking and passenger details page"""
+        # Add back button
+        if st.button("← Back to Flight Selection"):
+            st.session_state.view_booking = False
+            st.experimental_rerun()
+        
+        # Display booking summary
+        self.display_booking_summary()
+        
+        # Passenger details form
+        st.markdown("<h3>Passenger Details</h3>", unsafe_allow_html=True)
+        
+        for i in range(st.session_state.passengers):
+            st.markdown(f"<h4>Passenger {i+1}</h4>", unsafe_allow_html=True)
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.selectbox("Title", ["Mr.", "Mrs.", "Ms.", "Dr."], key=f"title_{i}")
+            
+            with col2:
+                st.text_input("First Name", key=f"first_name_{i}")
+            
+            with col3:
+                st.text_input("Last Name", key=f"last_name_{i}")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.date_input("Date of Birth", datetime.now() - timedelta(days=365*25), key=f"dob_{i}")
+            
+            with col2:
+                st.text_input("Nationality", "Indian", key=f"nationality_{i}")
+            
+            # Add more fields as needed
+            st.markdown("<hr>", unsafe_allow_html=True)
+        
+        # Contact details
+        st.markdown("<h3>Contact Details</h3>", unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.text_input("Email Address")
+        
+        with col2:
+            st.text_input("Mobile Number")
+        
+        # Complete booking button
+        if st.button("PROCEED TO PAYMENT", key="complete_booking"):
+            st.success("Booking details saved! Redirecting to payment page...")
+            # In a real app, this would redirect to a payment gateway
 
     def display_flight_card(self, flight, index, is_return=False):
-        """Display a flight card using Streamlit components"""
+        """Display a flight card with all details"""
         airline = flight["airline"]
         flight_number = flight["flight_number"]
         duration_mins = self.get_flight_time_in_minutes(flight["departure_time"], flight["arrival_time"])
@@ -432,287 +736,44 @@ class EnhancedFlightBookingApp:
         is_selected = (is_return and st.session_state.selected_return_flight == index) or \
                      (not is_return and st.session_state.selected_flight == index)
         
-        # Add flight card with custom styling
-        card_key = f"flight_card_{index}{'_return' if is_return else ''}"
+        # Create flight card container
+        card_style = "flight-card selected-flight" if is_selected else "flight-card"
         
-        # Create flight card with container
-        with stylable_container(
-            key=card_key,
-            css_styles=f"""
-                .flight-card {{
-                    border: {f'2px solid #1976d2;' if is_selected else '1px solid #e0e0e0;'}
-                    background-color: {f'#f5f9ff;' if is_selected else 'white;'}
-                }}
-            """
-        ):
-            with st.container():
-                # Top row with airline and price
-                col1, col2, col3 = st.columns([3, 5, 2])
-                
-                with col1:
-                    # Try to display airline logo first, if it fails just show text
-                    st.markdown(f"<div class='airline-name'>{airline}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='flight-detail'>{flight_number}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<span class='flight-class-tag'>{flight['class']}</span>", unsafe_allow_html=True)
-                
-                with col2:
-                    # Flight times and route with duration
-                    subcol1, subcol2, subcol3 = st.columns([2, 1, 2])
-                    
-                    with subcol1:
-                        st.markdown(f"<div class='flight-time'>{flight['departure_time']}</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='flight-detail'>{flight['from_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
-                        airport_code = flight['from_city'].split('(')[1].replace(')', '')
-                        st.markdown(f"<div class='flight-detail'>{airport_code}</div>", unsafe_allow_html=True)
-                    
-                    with subcol2:
-                        st.markdown(f"<div class='flight-duration'>{duration_text}</div>", unsafe_allow_html=True)
-                        st.markdown("→", unsafe_allow_html=True)
-                    
-                    with subcol3:
-                        st.markdown(f"<div class='flight-time'>{flight['arrival_time']}</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='flight-detail'>{flight['to_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
-                        airport_code = flight['to_city'].split('(')[1].replace(')', '')
-                        st.markdown(f"<div class='flight-detail'>{airport_code}</div>", unsafe_allow_html=True)
-                
-                with col3:
-                    st.markdown(f"<div class='flight-price'>₹{total_fare:,}</div>", unsafe_allow_html=True)
-                    st.markdown("<div class='flight-detail'>per passenger</div>", unsafe_allow_html=True)
-                
-                # Expandable sections
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    with st.expander("Fare Breakup"):
-                        st.markdown(f"""
-                        | Item | Amount |
-                        | ---- | ------ |
-                        | Base Fare | ₹{base_fare:,} |
-                        | Taxes & Fees | ₹{taxes:,} |
-                        | Convenience Fee | ₹{convenience_fee} |
-                        | **Total Amount** | **₹{total_fare:,}** |
-                        """)
-                
-                with col2:
-                    with st.expander("Fare Rules"):
-                        fare_class = flight['class']
-                        rules = self.fare_rules[fare_class]
-                        
-                        st.markdown(f"""
-                        | Rule | Details |
-                        | ---- | ------- |
-                        | Cancellation Fee | {rules['Cancellation Fee']} |
-                        | Date Change Fee | {rules['Date Change Fee']} |
-                        | Seat Selection | {rules['Seat Selection']} |
-                        | Baggage Allowance | {rules['Baggage Allowance']} |
-                        | Meal | {rules['Meal']} |
-                        | Refundable | {rules['Refundable']} |
-                        """)
-                
-                # Select button
-                if is_selected:
-                    select_button_label = "SELECTED ✓"
-                else:
-                    select_button_label = "SELECT FLIGHT"
-                
-                # Function to handle flight selection
-                def select_flight(idx, is_ret):
-                    if is_ret:
-                        st.session_state.selected_return_flight = idx
-                    else:
-                        st.session_state.selected_flight = idx
-                
-                # Button to select this flight
-                if st.button(select_button_label, key=f"select_{index}{'_return' if is_return else ''}"):
-                    select_flight(index, is_return)
-                    st.experimental_rerun()
-
-    def generate_flight(self, from_city, to_city, departure_date, fare_class=None):
-        """Generate a realistic flight with appropriate times based on cities"""
-        airline = random.choice(list(self.airlines.keys()))
-        
-        # More realistic time generation
-        departure_hour = random.randint(6, 22)  # Flights between 6 AM and 10 PM
-        departure_minute = random.choice(['00', '10', '15', '20', '30', '40', '45', '50'])
-        
-        # Flight duration based on cities (simulating real distances)
-        city_pairs = {
-            # Format: (from, to): (min_minutes, max_minutes)
-            ('Mumbai', 'Delhi'): (120, 150),
-            ('Delhi', 'Mumbai'): (120, 150),
-            ('Mumbai', 'Bangalore'): (90, 110),
-            ('Bangalore', 'Mumbai'): (90, 110),
-            ('Delhi', 'Bangalore'): (150, 180),
-            ('Bangalore', 'Delhi'): (150, 180),
-            ('Mumbai', 'Chennai'): (110, 130),
-            ('Chennai', 'Mumbai'): (110, 130),
-            ('Delhi', 'Chennai'): (160, 190),
-            ('Chennai', 'Delhi'): (160, 190),
-            ('Mumbai', 'Kolkata'): (160, 190),
-            ('Kolkata', 'Mumbai'): (160, 190),
-            ('Delhi', 'Kolkata'): (120, 150),
-            ('Kolkata', 'Delhi'): (120, 150),
-        }
-        
-        # Get from/to city main names
-        from_main = from_city.split('(')[0].strip()
-        to_main = to_city.split('(')[0].strip()
-        
-        # Get duration range or use default
-        duration_range = city_pairs.get((from_main, to_main), (60, 180))
-        flight_duration = random.randint(duration_range[0], duration_range[1])
-        
-        # Calculate arrival time
-        departure_time_mins = departure_hour * 60 + int(departure_minute)
-        arrival_time_mins = departure_time_mins + flight_duration
-        
-        arrival_hour = (arrival_time_mins // 60) % 24
-        arrival_minute = arrival_time_mins % 60
-        
-        # Generate price based on class
-        if not fare_class:
-            fare_class = random.choice(self.fare_classes)
+        with st.container():
+            st.markdown(f"<div class='{card_style}'>", unsafe_allow_html=True)
             
-        base_prices = {
-            "Economy": (3000, 8000),
-            "Premium Economy": (6000, 12000),
-            "Business": (15000, 35000)
-        }
-        
-        price_range = base_prices[fare_class]
-        price = random.randint(price_range[0], price_range[1])
-        
-        # Generate a realistic flight number
-        flight_number = f"{self.airlines[airline]['code']}-{random.randint(100, 999)}"
-        
-        return {
-            "airline": airline,
-            "flight_number": flight_number,
-            "departure_time": f"{departure_hour:02d}:{departure_minute}",
-            "arrival_time": f"{arrival_hour:02d}:{arrival_minute:02d}",
-            "price": price,
-            "class": fare_class,
-            "from_city": from_city,
-            "to_city": to_city,
-            "date": departure_date.strftime("%d %b %Y"),
-            "duration_mins": flight_duration
-        }
-
-    def generate_flights(self, from_city, to_city, date, count=8):
-        """Generate multiple flights between cities"""
-        flights = []
-        
-        # Ensure we have flights for all classes
-        for fare_class in self.fare_classes:
-            # Generate 2-3 flights for each class
-            for _ in range(random.randint(2, 3)):
-                flights.append(self.generate_flight(from_city, to_city, date, fare_class))
-        
-        # Add more random flights to reach the count
-        while len(flights) < count:
-            flights.append(self.generate_flight(from_city, to_city, date))
+            # Top row with airline and price
+            col1, col2, col3 = st.columns([3, 5, 2])
             
-        return flights
-
-    def filter_and_sort_flights(self, flights):
-        """Filter and sort flight results based on user preferences"""
-        # Filter by airlines
-        filtered_flights = [f for f in flights if f["airline"] in st.session_state.filter_airlines]
-        
-        # Filter by class
-        filtered_flights = [f for f in filtered_flights if f["class"] in st.session_state.filter_classes]
-        
-        # Sort flights
-        if st.session_state.sort_by == "price":
-            filtered_flights.sort(key=lambda x: x["price"])
-        elif st.session_state.sort_by == "duration":
-            filtered_flights.sort(key=lambda x: x["duration_mins"])
-        elif st.session_state.sort_by == "departure":
-            filtered_flights.sort(key=lambda x: x["departure_time"])
-        elif st.session_state.sort_by == "arrival":
-            filtered_flights.sort(key=lambda x: x["arrival_time"])
+            with col1:
+                # Display airline name and flight number
+                st.markdown(f"<div class='airline-name'>{airline}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='flight-detail'>{flight_number}</div>", unsafe_allow_html=True)
+                st.markdown(f"<span class='flight-class-tag'>{flight['class']}</span>", unsafe_allow_html=True)
             
-        return filtered_flights
-
-    def display_booking_summary(self):
-        """Display booking summary after flight selection"""
-        st.markdown("<h3>Your Booking Summary</h3>", unsafe_allow_html=True)
-        
-        # Booking progress indicator
-        st.markdown("""
-        <div class="progress-container">
-            <div class="progress-line"></div>
-            <div class="progress-step active-step">
-                <div class="step-circle">1</div>
-                <div class="step-title">Select Flights</div>
-            </div>
-            <div class="progress-step">
-                <div class="step-circle">2</div>
-                <div class="step-title">Passenger Details</div>
-            </div>
-            <div class="progress-step">
-                <div class="step-circle">3</div>
-                <div class="step-title">Seat Selection</div>
-            </div>
-            <div class="progress-step">
-                <div class="step-circle">4</div>
-                <div class="step-title">Payment</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            # Outbound flight summary
-            if st.session_state.selected_flight is not None:
-                flight = st.session_state.flight_results[st.session_state.selected_flight]
+            with col2:
+                # Flight times and route with duration
+                subcol1, subcol2, subcol3 = st.columns([2, 1, 2])
                 
-                st.markdown("<div class='divider'><div class='divider-line'></div><div class='divider-text'>OUTBOUND FLIGHT</div><div class='divider-line'></div></div>", unsafe_allow_html=True)
+                with subcol1:
+                    st.markdown(f"<div class='flight-time'>{flight['departure_time']}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='flight-detail'>{flight['from_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
+                    airport_code = flight['from_city'].split('(')[1].replace(')', '')
+                    st.markdown(f"<div class='flight-detail'>{airport_code}</div>", unsafe_allow_html=True)
                 
-                col1, col2, col3 = st.columns([2, 3, 1])
+                with subcol2:
+                    st.markdown(f"<div class='flight-duration'>{duration_text}</div>", unsafe_allow_html=True)
+                    st.markdown("→", unsafe_allow_html=True)
                 
-                with col1:
-                    st.markdown(f"<div class='airline-name'>{flight['airline']}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='flight-detail'>{flight['flight_number']}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='flight-detail'>{flight['date']}</div>", unsafe_allow_html=True)
-                
-                with col2:
-                    cols = st.columns([2, 1, 2])
-                    with cols[0]:
-                        st.markdown(f"<div class='flight-time'>{flight['departure_time']}</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='flight-detail'>{flight['from_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
-                    
-                    with cols[1]:
-                        duration = self.format_duration(flight['duration_mins'])
-                        st.markdown(f"<div class='flight-duration'>{duration}</div>", unsafe_allow_html=True)
-                        st.markdown("→", unsafe_allow_html=True)
-                        
-                    with cols[2]:
-                        st.markdown(f"<div class='flight-time'>{flight['arrival_time']}</div>", unsafe_allow_html=True)
-                        st.markdown(f"<div class='flight-detail'>{flight['to_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
-                
-                with col3:
-                    base_fare = flight['price']
-                    taxes = int(base_fare * 0.18)
-                    convenience_fee = 350
-                    total_fare = base_fare + taxes + convenience_fee
-                    st.markdown(f"<div class='flight-price'>₹{total_fare:,}</div>", unsafe_allow_html=True)
+                with subcol3:
+                    st.markdown(f"<div class='flight-time'>{flight['arrival_time']}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='flight-detail'>{flight['to_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
+                    airport_code = flight['to_city'].split('(')[1].replace(')', '')
+                    st.markdown(f"<div class='flight-detail'>{airport_code}</div>", unsafe_allow_html=True)
             
-            # Return flight summary if applicable
-            if 'return_flight_results' in st.session_state and st.session_state.return_flight_results and st.session_state.selected_return_flight is not None:
-                st.markdown("<div class='divider'><div class='divider-line'></div><div class='divider-text'>RETURN FLIGHT</div><div class='divider-line'></div></div>", unsafe_allow_html=True)
-                
-                flight = st.session_state.return_flight_results[st.session_state.selected_return_flight]
-                
-                col1, col2, col3 = st.columns([2, 3, 1])
-                
-                with col1:
-                    st.markdown(f"<div class='airline-name'>{flight['airline']}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='flight-detail'>{flight['flight_number']}</div>", unsafe_allow_html=True)
-                    st.markdown(f"<div class='flight-detail'>{flight['date']}</div>", unsafe_allow_html=True)
-                
-                with col2:
-                    cols = st.columns([2, 1, 2])
-                    with cols[0]:
-                        st.markdown(f"<div class='flight-time'>{flight['
+            with col3:
+                st.markdown(f"<div class='flight-price'>₹{total_fare:,}</div>", unsafe_allow_html=True)
+                st.markdown("<div class='flight-detail'>per passenger</div>", unsafe_allow_html=True)
+            
+            # Expandable sections
+            col1, col2 = st
