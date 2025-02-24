@@ -653,7 +653,4 @@ class FlightBookingApp:
             # Assign price based on class
             if fare_class == "Economy":
                 price = random.randint(2500, 5000)
-            elif fare_class == "Premium Economy":
-                price = random.randint(6000, 9000)
-            else:  # Business
-                price = random.
+            elif fare_class == "Premium
