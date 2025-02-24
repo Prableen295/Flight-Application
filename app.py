@@ -140,6 +140,24 @@ class FlightBookingApp:
             st.session_state.show_fare_breakup = {}
         if 'progress_step' not in st.session_state:
             st.session_state.progress_step = 1
+        if 'trip_type' not in st.session_state:
+            st.session_state.trip_type = "one_way"
+        if 'from_city' not in st.session_state:
+            st.session_state.from_city = None
+        if 'to_city' not in st.session_state:
+            st.session_state.to_city = None
+        if 'depart_date' not in st.session_state:
+            st.session_state.depart_date = None
+        if 'return_date' not in st.session_state:
+            st.session_state.return_date = None
+        if 'payment_method' not in st.session_state:
+            st.session_state.payment_method = None
+        if 'passenger_details' not in st.session_state:
+            st.session_state.passenger_details = []
+        if 'booking_complete' not in st.session_state:
+            st.session_state.booking_complete = False
+        if 'booking_reference' not in st.session_state:
+            st.session_state.booking_reference = None
     
     def apply_custom_css(self):
         """Apply custom CSS styling for better UI"""
@@ -597,6 +615,12 @@ class FlightBookingApp:
         </style>
         """, unsafe_allow_html=True)
 
+    def format_duration(self, minutes):
+        """Format minutes to hours and minutes"""
+        hours = minutes // 60
+        mins = minutes % 60
+        return f"{hours}h {mins}m"
+
     def generate_flights(self, from_city, to_city, date, count=10):
         """Generate random flight data"""
         flights = []
@@ -632,24 +656,4 @@ class FlightBookingApp:
             elif fare_class == "Premium Economy":
                 price = random.randint(6000, 9000)
             else:  # Business
-                price = random.randint(12000, 18000)
-            
-            # Create a flight
-            flight = {
-                "from_city": from_city,
-                "to_city": to_city,
-                "date": date,
-                "departure_time": departure_time,
-                "arrival_time": arrival_time,
-                "airline": airline,
-                "flight_number": flight_number,
-                "price": price,
-                "class": fare_class,
-                "duration": self.format_duration(duration_mins),
-                "duration_mins": duration_mins
-            }
-            
-            flights.append(flight)
-        
-        return flights
-    
+                price = random.
