@@ -1,11 +1,42 @@
 import streamlit as st
 from datetime import datetime, timedelta
 import random
+import pandas as pd
+from PIL import Image
+import io
+import requests
+from streamlit_extras.stylable_container import stylable_container
 import time
-import base64
+
+# Try to import streamlit_extras, if not available, define a placeholder
+try:
+    from streamlit_extras.colored_header import colored_header
+    from streamlit_extras.card import card
+except ImportError:
+    # Define placeholder functions if imports aren't available
+    def colored_header(label, description=None, color_name=None):
+        st.header(label)
+        if description:
+            st.write(description)
+    
+    def card(title, text, image=None, url=None):
+        st.subheader(title)
+        st.write(text)
+        if image:
+            st.image(image)
+        if url:
+            st.markdown(f"[More info]({url})")
 
 class EnhancedFlightBookingApp:
     def __init__(self):
+        # Set page config
+        st.set_page_config(
+            page_title="Flight Booking App",
+            page_icon="✈️",
+            layout="wide",
+            initial_sidebar_state="collapsed"
+        )
+        
         # Initialize city and airline data
         self.cities = [
             "Mumbai (BOM)", "Delhi (DEL)", "Bangalore (BLR)", 
@@ -18,32 +49,32 @@ class EnhancedFlightBookingApp:
             "IndiGo": {
                 "code": "6E", 
                 "color": "#0052CC",
-                "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/IndiGo_Airlines_logo.svg/512px-IndiGo_Airlines_logo.svg.png"
+                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/IndiGo_Airlines_logo.svg/512px-IndiGo_Airlines_logo.svg.png"
             },
             "Air India": {
                 "code": "AI", 
                 "color": "#e31837",
-                "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Air_India_Logo.svg/512px-Air_India_Logo.svg.png"
+                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Air_India_Logo.svg/512px-Air_India_Logo.svg.png"
             },
             "SpiceJet": {
                 "code": "SG", 
                 "color": "#ff4e00",
-                "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/SpiceJet_logo.svg/512px-SpiceJet_logo.svg.png"
+                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/SpiceJet_logo.svg/512px-SpiceJet_logo.svg.png"
             },
             "Vistara": {
                 "code": "UK", 
                 "color": "#4b286d",
-                "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Vistara_Logo.svg/512px-Vistara_Logo.svg.png"
+                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Vistara_Logo.svg/512px-Vistara_Logo.svg.png"
             },
             "Akasa Air": {
                 "code": "QP", 
                 "color": "#FF6D38",
-                "logo": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Akasa_Air_logo.svg"
+                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/b/b1/Akasa_Air_logo.svg"
             },
             "Alliance Air": {
                 "code": "9I", 
                 "color": "#2B3990",
-                "logo": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Alliance_Air_India_Logo.svg/512px-Alliance_Air_India_Logo.svg.png"
+                "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Alliance_Air_India_Logo.svg/512px-Alliance_Air_India_Logo.svg.png"
             }
         }
         
@@ -76,6 +107,8 @@ class EnhancedFlightBookingApp:
             }
         }
         
+        self.apply_custom_css()
+        
         # Session state initialization
         if 'search_performed' not in st.session_state:
             st.session_state.search_performed = False
@@ -83,10 +116,6 @@ class EnhancedFlightBookingApp:
             st.session_state.selected_flight = None
         if 'selected_return_flight' not in st.session_state:
             st.session_state.selected_return_flight = None
-        if 'fare_details_open' not in st.session_state:
-            st.session_state.fare_details_open = {}
-        if 'fare_rules_open' not in st.session_state:
-            st.session_state.fare_rules_open = {}
         if 'flight_results' not in st.session_state:
             st.session_state.flight_results = []
         if 'return_flight_results' not in st.session_state:
@@ -95,341 +124,275 @@ class EnhancedFlightBookingApp:
             st.session_state.view_booking = False
         if 'passengers' not in st.session_state:
             st.session_state.passengers = 1
-
-    def get_placeholder_image(self):
-        # Fallback placeholder for airline logos
-        return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1wbGFuZSI+PHBhdGggZD0iTTE3LjgxOCA0LjU5OGwxLjYtMS42YTEgMSAwIDEgMSAxLjQxNCAxLjQxNGwtMS42IDEuNmExIDEgMCAwIDEtMS40MTQtMS40MTR6Ii8+PHBhdGggZD0iTTEzIDMuNVYyYTEgMSAwIDAgMSAxLTFoMi45NTRhMS43OCAxLjc4IDAgMCAxIDEuNzggMS43OHYuNzJhMSAxIDAgMCAxLS41MTMuODc0bC0zLjc2IDEuOTU0QTExIDExIDAgMCAxIDbpV6mG9OUmJucmdCJ+ldx9eXcYbFGDnZXRib3g9IjAgMCAyNCAyNCI+YXCIn1sInRvdGFsIl19PC9wYXRoPjwvc3ZnPg=="
-
+        if 'sort_by' not in st.session_state:
+            st.session_state.sort_by = "price"
+        if 'filter_airlines' not in st.session_state:
+            st.session_state.filter_airlines = list(self.airlines.keys())
+        if 'filter_classes' not in st.session_state:
+            st.session_state.filter_classes = self.fare_classes.copy()
+    
     def apply_custom_css(self):
+        """Apply custom CSS styling to improve the app's appearance"""
         st.markdown("""
-            <style>
-                /* Main container styling */
-                .main {
-                    padding: 0;
-                    margin: 0;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                }
-                
-                /* Header styling */
-                .header {
-                    background: linear-gradient(135deg, #0d47a1, #42a5f5);
-                    color: white;
-                    padding: 20px;
-                    margin: -1rem -1rem 2rem -1rem;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                }
-                
-                /* Search box styling */
-                .search-box {
-                    background-color: white;
-                    padding: 25px;
-                    border-radius: 10px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
-                    margin-bottom: 25px;
-                    border: 1px solid #e0e0e0;
-                }
-                
-                /* Flight card styling */
+        <style>
+            .main {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            .app-header {
+                background: linear-gradient(135deg, #0d47a1, #42a5f5);
+                padding: 1.5rem;
+                color: white;
+                border-radius: 0px;
+                margin-bottom: 1rem;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            
+            .search-form {
+                background-color: white;
+                padding: 1.5rem;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+                margin-bottom: 1.5rem;
+                border: 1px solid #e0e0e0;
+            }
+            
+            .flight-card {
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 1rem;
+                margin-bottom: 1rem;
+                transition: transform 0.2s;
+                background-color: white;
+            }
+            
+            .flight-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            }
+            
+            .selected-flight {
+                border: 2px solid #1976d2;
+                background-color: #f5f9ff;
+            }
+            
+            .flight-time {
+                font-size: 1.2rem;
+                font-weight: bold;
+            }
+            
+            .airline-name {
+                font-weight: bold;
+            }
+            
+            .flight-price {
+                color: #d32f2f;
+                font-size: 1.3rem;
+                font-weight: bold;
+            }
+            
+            .flight-detail {
+                color: #616161;
+                font-size: 0.9rem;
+            }
+            
+            .flight-duration {
+                text-align: center;
+                color: #616161;
+                font-weight: bold;
+                font-size: 0.9rem;
+                position: relative;
+            }
+            
+            .flight-class-tag {
+                background-color: #e3f2fd;
+                color: #1976d2;
+                padding: 0.2rem 0.6rem;
+                border-radius: 4px;
+                font-size: 0.8rem;
+                font-weight: bold;
+            }
+            
+            .filter-panel {
+                background-color: white;
+                padding: 1rem;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+                margin-bottom: 1rem;
+            }
+            
+            .progress-container {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 2rem;
+                position: relative;
+            }
+            
+            .progress-step {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                z-index: 2;
+            }
+            
+            .step-circle {
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                background-color: #e0e0e0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #616161;
+                font-weight: bold;
+                margin-bottom: 8px;
+            }
+            
+            .active-step .step-circle {
+                background-color: #1976d2;
+                color: white;
+            }
+            
+            .step-title {
+                font-size: 0.8rem;
+                color: #616161;
+                text-align: center;
+            }
+            
+            .active-step .step-title {
+                color: #1976d2;
+                font-weight: bold;
+            }
+            
+            .progress-line {
+                position: absolute;
+                top: 15px;
+                left: 15%;
+                right: 15%;
+                height: 2px;
+                background-color: #e0e0e0;
+                z-index: 1;
+            }
+            
+            .divider {
+                display: flex;
+                align-items: center;
+                margin: 1rem 0;
+            }
+            
+            .divider-line {
+                flex-grow: 1;
+                height: 1px;
+                background-color: #e0e0e0;
+            }
+            
+            .divider-text {
+                margin: 0 10px;
+                color: #616161;
+                font-size: 0.9rem;
+            }
+            
+            .price-breakdown {
+                background-color: #f5f9ff;
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 1rem;
+                border: 1px solid #e3f2fd;
+            }
+            
+            .fare-rules {
+                background-color: #f9f9f9;
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 1rem;
+                border: 1px solid #e0e0e0;
+            }
+            
+            /* Improve button styling */
+            .stButton>button {
+                background-color: #1976d2;
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 4px;
+                font-weight: bold;
+                width: 100%;
+                height: 2.5rem;
+            }
+            
+            /* Add animation to loading spinner */
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            .loading-spinner {
+                border: 4px solid rgba(0, 0, 0, 0.1);
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                border-left-color: #1976d2;
+                animation: spin 1s linear infinite;
+                margin: 0 auto;
+            }
+            
+            /* Responsive fixes */
+            @media (max-width: 768px) {
                 .flight-card {
-                    background-color: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    margin: 15px 0;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-                    border: 1px solid #f0f0f0;
-                    transition: all 0.3s ease;
+                    padding: 0.8rem;
                 }
-                
-                .flight-card:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+                .flight-time {
+                    font-size: 1rem;
                 }
-                
-                /* Selected flight */
-                .flight-card-selected {
-                    border: 2px solid #1976d2;
-                    background-color: #f5f9ff;
+                .flight-price {
+                    font-size: 1.1rem;
                 }
-                
-                /* Airline logo */
-                .airline-logo {
-                    width: 40px;
-                    height: 40px;
-                    object-fit: contain;
-                    margin-right: 12px;
-                }
-                
-                /* Price styling */
-                .price {
-                    color: #d63b3b;
-                    font-size: 22px;
-                    font-weight: bold;
-                }
-                
-                /* Flight details */
-                .flight-details {
-                    color: #4a4a4a;
-                    font-size: 14px;
-                }
-                
-                /* Duration line */
-                .duration-line {
-                    height: 2px;
-                    background-color: #e0e0e0;
-                    position: relative;
-                    margin: 0 15px;
-                    flex-grow: 1;
-                }
-                
-                .duration-line::before,
-                .duration-line::after {
-                    content: '•';
-                    position: absolute;
-                    top: -8px;
-                    color: #555;
-                    font-size: 16px;
-                }
-                
-                .duration-line::before {
-                    left: -5px;
-                }
-                
-                .duration-line::after {
-                    right: -5px;
-                }
-                
-                /* Duration text */
-                .duration-text {
-                    position: absolute;
-                    top: -10px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background-color: white;
-                    padding: 0 10px;
-                    color: #555;
-                    font-size: 12px;
-                    font-weight: bold;
-                }
-                
-                /* Button styling */
-                .stButton>button {
-                    background-color: #1976d2;
-                    color: white;
-                    font-weight: bold;
-                    border: none;
-                    padding: 10px 20px;
-                    width: 100%;
-                    border-radius: 4px;
-                    transition: all 0.2s ease-in-out;
-                }
-                
-                .stButton>button:hover {
-                    background-color: #1565c0;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                }
-                
-                /* Trip type selector */
-                .stRadio>label {
-                    font-weight: bold;
-                    color: #333;
-                }
-                
-                /* Input labels */
-                .stSelectbox>label, .stDateInput>label, .stNumberInput>label {
-                    font-weight: bold;
-                    color: #333;
-                }
-                
-                /* Fare details */
-                .fare-details {
-                    background-color: #f5f9ff;
-                    padding: 15px;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                    border: 1px solid #e0e0e0;
-                }
-                
-                .fare-details-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    cursor: pointer;
-                    padding: 8px 0;
-                }
-                
-                .fare-rules {
-                    background-color: #f9f9f9;
-                    padding: 15px;
-                    border-radius: 4px;
-                    margin-top: 10px;
-                    border: 1px solid #e0e0e0;
-                }
-                
-                /* Tabs styling */
-                .stTabs>div>div:first-child {
-                    background-color: #f5f5f5;
-                    border-radius: 8px 8px 0 0;
-                }
-
-                /* Filter section */
-                .filter-section {
-                    background-color: white;
-                    padding: 15px;
-                    border-radius: 8px;
-                    margin-bottom: 20px;
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-                    border: 1px solid #f0f0f0;
-                }
-                
-                /* View booking panel */
-                .booking-panel {
-                    background-color: #f8f8f8;
-                    padding: 20px;
-                    border-radius: 8px;
-                    margin-top: 20px;
-                    border: 1px solid #e0e0e0;
-                }
-                
-                /* Progress bar */
-                .booking-progress {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 30px;
-                    position: relative;
-                }
-                
-                .booking-step {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    z-index: 1;
-                    position: relative;
-                }
-                
-                .step-number {
-                    width: 30px;
-                    height: 30px;
-                    border-radius: 50%;
-                    background-color: #e0e0e0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: #555;
-                    font-weight: bold;
-                    margin-bottom: 5px;
-                }
-                
-                .active-step .step-number {
-                    background-color: #1976d2;
-                    color: white;
-                }
-                
-                .step-label {
-                    font-size: 12px;
-                    color: #555;
-                }
-                
-                .active-step .step-label {
-                    color: #1976d2;
-                    font-weight: bold;
-                }
-                
-                .progress-line {
-                    position: absolute;
-                    top: 15px;
-                    left: 15%;
-                    right: 15%;
-                    height: 2px;
-                    background-color: #e0e0e0;
-                    z-index: 0;
-                }
-                
-                .progress-line-active {
-                    position: absolute;
-                    top: 15px;
-                    left: 15%;
-                    width: 0%;
-                    height: 2px;
-                    background-color: #1976d2;
-                    z-index: 0;
-                    transition: width 0.3s ease;
-                }
-                
-                /* Badge styles */
-                .badge {
-                    display: inline-block;
-                    padding: 3px 8px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                    font-weight: bold;
-                    margin-left: 8px;
-                }
-                
-                .badge-blue {
-                    background-color: #e3f2fd;
-                    color: #1976d2;
-                }
-                
-                .badge-green {
-                    background-color: #e8f5e9;
-                    color: #2e7d32;
-                }
-                
-                .badge-orange {
-                    background-color: #fff3e0;
-                    color: #e65100;
-                }
-                
-                /* Convenience fee tooltip */
-                .tooltip {
-                    position: relative;
-                    display: inline-block;
-                    cursor: help;
-                    margin-left: 5px;
-                }
-                
-                .tooltip .tooltiptext {
-                    visibility: hidden;
-                    width: 200px;
-                    background-color: #555;
-                    color: #fff;
-                    text-align: center;
-                    border-radius: 6px;
-                    padding: 5px;
-                    position: absolute;
-                    z-index: 1;
-                    bottom: 125%;
-                    left: 50%;
-                    margin-left: -100px;
-                    opacity: 0;
-                    transition: opacity 0.3s;
-                }
-                
-                .tooltip:hover .tooltiptext {
-                    visibility: visible;
-                    opacity: 1;
-                }
-                
-                /* Travel time progress */
-                .progress-container {
-                    background-color: #f0f0f0;
-                    border-radius: 10px;
-                    height: 4px;
-                    width: 100%;
-                    margin: 0 10px;
-                    position: relative;
-                }
-                
-                .progress-bar {
-                    background-color: #1976d2;
-                    height: 4px;
-                    border-radius: 10px;
-                    position: absolute;
-                    left: 0;
-                    width: 100%;
-                }
-            </style>
+            }
+            
+            /* Hide default Streamlit elements */
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            
+            /* Style expander headers */
+            .st-eb {
+                font-weight: bold !important;
+                color: #1976d2 !important;
+            }
+            
+            /* Improve the tabs */
+            .stTabs [data-baseweb="tab-list"] {
+                gap: 8px;
+            }
+            
+            .stTabs [data-baseweb="tab"] {
+                background-color: white;
+                border-radius: 4px 4px 0 0;
+                border: 1px solid #e0e0e0;
+                border-bottom: none;
+                padding: 0.5rem 1rem;
+            }
+            
+            .stTabs [aria-selected="true"] {
+                background-color: #1976d2 !important;
+                color: white !important;
+            }
+        </style>
         """, unsafe_allow_html=True)
+
+    def load_airline_logo(self, airline):
+        """Load airline logo from URL or use a placeholder"""
+        try:
+            logo_url = self.airlines[airline]["logo_url"]
+            response = requests.get(logo_url)
+            logo = Image.open(io.BytesIO(response.content))
+            return logo
+        except:
+            # Return a simple colored square with airline initials as placeholder
+            color = self.airlines[airline]["color"]
+            code = self.airlines[airline]["code"]
+            # Create placeholder text saying this would be the logo
+            return f"[{code}]"
 
     def get_flight_time_in_minutes(self, departure_time, arrival_time):
         """Calculate flight duration in minutes"""
@@ -452,182 +415,117 @@ class EnhancedFlightBookingApp:
         mins = minutes % 60
         return f"{hours}h {mins}m"
 
-    def create_flight_card(self, flight, from_city, to_city, index, is_return=False):
+    def display_flight_card(self, flight, index, is_return=False):
+        """Display a flight card using Streamlit components"""
         airline = flight["airline"]
-        color = self.airlines[airline]["color"]
-        logo = self.airlines[airline].get("logo", self.get_placeholder_image())
-        
-        # Calculate flight duration
+        flight_number = flight["flight_number"]
         duration_mins = self.get_flight_time_in_minutes(flight["departure_time"], flight["arrival_time"])
         duration_text = self.format_duration(duration_mins)
         
-        # Determine if this flight is selected
-        flight_key = f"flight_{index}{'_return' if is_return else ''}"
-        selected_class = ""
-        
-        if (is_return and st.session_state.selected_return_flight == index) or \
-           (not is_return and st.session_state.selected_flight == index):
-            selected_class = "flight-card-selected"
-        
-        # Convenience Fee
-        convenience_fee = 350
-        
-        # Calculate total amount
+        # Calculate fare details
         base_fare = flight['price']
         taxes = int(base_fare * 0.18)  # GST
+        convenience_fee = 350
         total_fare = base_fare + taxes + convenience_fee
         
-        # Format for fare breakdown
-        fare_breakdown = {
-            "Base Fare": f"₹{base_fare:,}",
-            "Taxes & Fees": f"₹{taxes:,}",
-            "Convenience Fee": f"₹{convenience_fee}",
-            "Total Amount": f"₹{total_fare:,}"
-        }
+        # Check if this flight is selected
+        is_selected = (is_return and st.session_state.selected_return_flight == index) or \
+                     (not is_return and st.session_state.selected_flight == index)
         
-        # Create card HTML
-        card = f"""
-            <div class="flight-card {selected_class}" id="{flight_key}">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div style="display: flex; align-items: center;">
-                        <img src="{logo}" class="airline-logo" alt="{airline}"/>
-                        <div>
-                            <div style="font-weight: bold">{airline}</div>
-                            <div class="flight-details">{flight['flight_number']}</div>
-                        </div>
-                        <span class="badge badge-blue">{flight['class']}</span>
-                    </div>
-                    <div style="text-align: right">
-                        <div class="price">₹{total_fare:,}</div>
-                        <div class="flight-details">per passenger</div>
-                    </div>
-                </div>
+        # Add flight card with custom styling
+        card_key = f"flight_card_{index}{'_return' if is_return else ''}"
+        
+        # Create flight card with container
+        with stylable_container(
+            key=card_key,
+            css_styles=f"""
+                .flight-card {{
+                    border: {f'2px solid #1976d2;' if is_selected else '1px solid #e0e0e0;'}
+                    background-color: {f'#f5f9ff;' if is_selected else 'white;'}
+                }}
+            """
+        ):
+            with st.container():
+                # Top row with airline and price
+                col1, col2, col3 = st.columns([3, 5, 2])
                 
-                <div style="display: flex; align-items: center; margin: 15px 0;">
-                    <div style="text-align: center">
-                        <div style="font-weight: bold; font-size: 18px;">{flight['departure_time']}</div>
-                        <div class="flight-details">{from_city.split('(')[0].strip()}</div>
-                        <div class="flight-details">{from_city.split('(')[1].replace(')', '')}</div>
-                    </div>
+                with col1:
+                    # Try to display airline logo first, if it fails just show text
+                    st.markdown(f"<div class='airline-name'>{airline}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='flight-detail'>{flight_number}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<span class='flight-class-tag'>{flight['class']}</span>", unsafe_allow_html=True)
+                
+                with col2:
+                    # Flight times and route with duration
+                    subcol1, subcol2, subcol3 = st.columns([2, 1, 2])
                     
-                    <div style="position: relative; display: flex; align-items: center; flex-grow: 1; margin: 0 15px;">
-                        <div class="duration-line">
-                            <div class="duration-text">{duration_text}</div>
-                        </div>
-                    </div>
+                    with subcol1:
+                        st.markdown(f"<div class='flight-time'>{flight['departure_time']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='flight-detail'>{flight['from_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
+                        airport_code = flight['from_city'].split('(')[1].replace(')', '')
+                        st.markdown(f"<div class='flight-detail'>{airport_code}</div>", unsafe_allow_html=True)
                     
-                    <div style="text-align: center">
-                        <div style="font-weight: bold; font-size: 18px;">{flight['arrival_time']}</div>
-                        <div class="flight-details">{to_city.split('(')[0].strip()}</div>
-                        <div class="flight-details">{to_city.split('(')[1].replace(')', '')}</div>
-                    </div>
-                </div>
-        """
-        
-        # Add Fare Details and Rules accordions
-        fare_id = f"fare_{index}{'_return' if is_return else ''}"
-        rules_id = f"rules_{index}{'_return' if is_return else ''}"
-        
-        fare_details_open = st.session_state.fare_details_open.get(fare_id, False)
-        fare_rules_open = st.session_state.fare_rules_open.get(rules_id, False)
-        
-        fare_details_button = "▼" if fare_details_open else "▶"
-        fare_rules_button = "▼" if fare_rules_open else "▶"
-        
-        card += f"""
-                <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                    <div class="fare-details-header" onclick="toggleSection('{fare_id}')">
-                        <span style="font-weight: bold;">Fare Breakup</span>
-                        <span id="fare_toggle_{fare_id}">{fare_details_button}</span>
-                    </div>
-                    <div class="fare-details-header" onclick="toggleSection('{rules_id}')">
-                        <span style="font-weight: bold;">Fare Rules</span>
-                        <span id="rules_toggle_{rules_id}">{fare_rules_button}</span>
-                    </div>
-                </div>
-        """
-        
-        # Fare Details Section
-        fare_display = "block" if fare_details_open else "none"
-        card += f"""
-                <div id="{fare_id}" class="fare-details" style="display: {fare_display};">
-                    <table style="width: 100%;">
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">Base Fare:</td>
-                            <td style="padding: 5px; text-align: right;">{fare_breakdown['Base Fare']}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">Taxes & Fees:</td>
-                            <td style="padding: 5px; text-align: right;">{fare_breakdown['Taxes & Fees']}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">
-                                Convenience Fee
-                                <div class="tooltip">ⓘ
-                                    <span class="tooltiptext">This fee helps us provide you with a seamless booking experience.</span>
-                                </div>
-                            </td>
-                            <td style="padding: 5px; text-align: right;">{fare_breakdown['Convenience Fee']}</td>
-                        </tr>
-                        <tr style="border-top: 1px solid #e0e0e0;">
-                            <td style="padding: 5px; font-weight: bold;">Total Amount:</td>
-                            <td style="padding: 5px; text-align: right; font-weight: bold;">{fare_breakdown['Total Amount']}</td>
-                        </tr>
-                    </table>
-                </div>
-        """
-        
-        # Fare Rules Section
-        rules_display = "block" if fare_rules_open else "none"
-        fare_class = flight['class']
-        rules = self.fare_rules[fare_class]
-        
-        card += f"""
-                <div id="{rules_id}" class="fare-rules" style="display: {rules_display};">
-                    <table style="width: 100%;">
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">Cancellation Fee:</td>
-                            <td style="padding: 5px;">{rules['Cancellation Fee']}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">Date Change Fee:</td>
-                            <td style="padding: 5px;">{rules['Date Change Fee']}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">Seat Selection:</td>
-                            <td style="padding: 5px;">{rules['Seat Selection']}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">Baggage Allowance:</td>
-                            <td style="padding: 5px;">{rules['Baggage Allowance']}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">Meal:</td>
-                            <td style="padding: 5px;">{rules['Meal']}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px; font-weight: bold;">Refundable:</td>
-                            <td style="padding: 5px;">{rules['Refundable']}</td>
-                        </tr>
-                    </table>
-                </div>
-        """
-        
-        # Add select button and close card
-        select_button_label = "SELECT FLIGHT"
-        
-        card += f"""
-                <div style="display: flex; justify-content: center; margin-top: 15px;">
-                    <button type="button" 
-                        onclick="selectFlight({index}, {'true' if is_return else 'false'})" 
-                        style="background-color: #1976d2; color: white; font-weight: bold; border: none; padding: 10px 20px; width: 80%; border-radius: 4px; cursor: pointer;">
-                        {select_button_label}
-                    </button>
-                </div>
-            </div>
-        """
-        
-        return card
+                    with subcol2:
+                        st.markdown(f"<div class='flight-duration'>{duration_text}</div>", unsafe_allow_html=True)
+                        st.markdown("→", unsafe_allow_html=True)
+                    
+                    with subcol3:
+                        st.markdown(f"<div class='flight-time'>{flight['arrival_time']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='flight-detail'>{flight['to_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
+                        airport_code = flight['to_city'].split('(')[1].replace(')', '')
+                        st.markdown(f"<div class='flight-detail'>{airport_code}</div>", unsafe_allow_html=True)
+                
+                with col3:
+                    st.markdown(f"<div class='flight-price'>₹{total_fare:,}</div>", unsafe_allow_html=True)
+                    st.markdown("<div class='flight-detail'>per passenger</div>", unsafe_allow_html=True)
+                
+                # Expandable sections
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    with st.expander("Fare Breakup"):
+                        st.markdown(f"""
+                        | Item | Amount |
+                        | ---- | ------ |
+                        | Base Fare | ₹{base_fare:,} |
+                        | Taxes & Fees | ₹{taxes:,} |
+                        | Convenience Fee | ₹{convenience_fee} |
+                        | **Total Amount** | **₹{total_fare:,}** |
+                        """)
+                
+                with col2:
+                    with st.expander("Fare Rules"):
+                        fare_class = flight['class']
+                        rules = self.fare_rules[fare_class]
+                        
+                        st.markdown(f"""
+                        | Rule | Details |
+                        | ---- | ------- |
+                        | Cancellation Fee | {rules['Cancellation Fee']} |
+                        | Date Change Fee | {rules['Date Change Fee']} |
+                        | Seat Selection | {rules['Seat Selection']} |
+                        | Baggage Allowance | {rules['Baggage Allowance']} |
+                        | Meal | {rules['Meal']} |
+                        | Refundable | {rules['Refundable']} |
+                        """)
+                
+                # Select button
+                if is_selected:
+                    select_button_label = "SELECTED ✓"
+                else:
+                    select_button_label = "SELECT FLIGHT"
+                
+                # Function to handle flight selection
+                def select_flight(idx, is_ret):
+                    if is_ret:
+                        st.session_state.selected_return_flight = idx
+                    else:
+                        st.session_state.selected_flight = idx
+                
+                # Button to select this flight
+                if st.button(select_button_label, key=f"select_{index}{'_return' if is_return else ''}"):
+                    select_flight(index, is_return)
+                    st.experimental_rerun()
 
     def generate_flight(self, from_city, to_city, departure_date, fare_class=None):
         """Generate a realistic flight with appropriate times based on cities"""
@@ -700,6 +598,121 @@ class EnhancedFlightBookingApp:
             "duration_mins": flight_duration
         }
 
-    def generate_flights(self, from_city, to_city, date, count=10):
+    def generate_flights(self, from_city, to_city, date, count=8):
         """Generate multiple flights between cities"""
         flights = []
+        
+        # Ensure we have flights for all classes
+        for fare_class in self.fare_classes:
+            # Generate 2-3 flights for each class
+            for _ in range(random.randint(2, 3)):
+                flights.append(self.generate_flight(from_city, to_city, date, fare_class))
+        
+        # Add more random flights to reach the count
+        while len(flights) < count:
+            flights.append(self.generate_flight(from_city, to_city, date))
+            
+        return flights
+
+    def filter_and_sort_flights(self, flights):
+        """Filter and sort flight results based on user preferences"""
+        # Filter by airlines
+        filtered_flights = [f for f in flights if f["airline"] in st.session_state.filter_airlines]
+        
+        # Filter by class
+        filtered_flights = [f for f in filtered_flights if f["class"] in st.session_state.filter_classes]
+        
+        # Sort flights
+        if st.session_state.sort_by == "price":
+            filtered_flights.sort(key=lambda x: x["price"])
+        elif st.session_state.sort_by == "duration":
+            filtered_flights.sort(key=lambda x: x["duration_mins"])
+        elif st.session_state.sort_by == "departure":
+            filtered_flights.sort(key=lambda x: x["departure_time"])
+        elif st.session_state.sort_by == "arrival":
+            filtered_flights.sort(key=lambda x: x["arrival_time"])
+            
+        return filtered_flights
+
+    def display_booking_summary(self):
+        """Display booking summary after flight selection"""
+        st.markdown("<h3>Your Booking Summary</h3>", unsafe_allow_html=True)
+        
+        # Booking progress indicator
+        st.markdown("""
+        <div class="progress-container">
+            <div class="progress-line"></div>
+            <div class="progress-step active-step">
+                <div class="step-circle">1</div>
+                <div class="step-title">Select Flights</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">2</div>
+                <div class="step-title">Passenger Details</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">3</div>
+                <div class="step-title">Seat Selection</div>
+            </div>
+            <div class="progress-step">
+                <div class="step-circle">4</div>
+                <div class="step-title">Payment</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            # Outbound flight summary
+            if st.session_state.selected_flight is not None:
+                flight = st.session_state.flight_results[st.session_state.selected_flight]
+                
+                st.markdown("<div class='divider'><div class='divider-line'></div><div class='divider-text'>OUTBOUND FLIGHT</div><div class='divider-line'></div></div>", unsafe_allow_html=True)
+                
+                col1, col2, col3 = st.columns([2, 3, 1])
+                
+                with col1:
+                    st.markdown(f"<div class='airline-name'>{flight['airline']}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='flight-detail'>{flight['flight_number']}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='flight-detail'>{flight['date']}</div>", unsafe_allow_html=True)
+                
+                with col2:
+                    cols = st.columns([2, 1, 2])
+                    with cols[0]:
+                        st.markdown(f"<div class='flight-time'>{flight['departure_time']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='flight-detail'>{flight['from_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
+                    
+                    with cols[1]:
+                        duration = self.format_duration(flight['duration_mins'])
+                        st.markdown(f"<div class='flight-duration'>{duration}</div>", unsafe_allow_html=True)
+                        st.markdown("→", unsafe_allow_html=True)
+                        
+                    with cols[2]:
+                        st.markdown(f"<div class='flight-time'>{flight['arrival_time']}</div>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='flight-detail'>{flight['to_city'].split('(')[0].strip()}</div>", unsafe_allow_html=True)
+                
+                with col3:
+                    base_fare = flight['price']
+                    taxes = int(base_fare * 0.18)
+                    convenience_fee = 350
+                    total_fare = base_fare + taxes + convenience_fee
+                    st.markdown(f"<div class='flight-price'>₹{total_fare:,}</div>", unsafe_allow_html=True)
+            
+            # Return flight summary if applicable
+            if 'return_flight_results' in st.session_state and st.session_state.return_flight_results and st.session_state.selected_return_flight is not None:
+                st.markdown("<div class='divider'><div class='divider-line'></div><div class='divider-text'>RETURN FLIGHT</div><div class='divider-line'></div></div>", unsafe_allow_html=True)
+                
+                flight = st.session_state.return_flight_results[st.session_state.selected_return_flight]
+                
+                col1, col2, col3 = st.columns([2, 3, 1])
+                
+                with col1:
+                    st.markdown(f"<div class='airline-name'>{flight['airline']}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='flight-detail'>{flight['flight_number']}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='flight-detail'>{flight['date']}</div>", unsafe_allow_html=True)
+                
+                with col2:
+                    cols = st.columns([2, 1, 2])
+                    with cols[0]:
+                        st.markdown(f"<div class='flight-time'>{flight['
