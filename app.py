@@ -655,4 +655,4 @@ class FlightBookingApp:
             if fare_class == "Economy":
                 price = random.randint(2500, 5000)
             elif fare_class == "Premium Economy":
-                price = random.randint(5
+                price = random.randint(5)
