@@ -6,6 +6,7 @@ import time
 import base64
 from PIL import Image
 import io
+import uuid
 
 # Set page config
 st.set_page_config(
@@ -288,7 +289,7 @@ class FlightBookingApp:
             }
             
             .step-title {
-                font-size: 0.8rem;
+                font-size:.8rem;
                 color: #616161;
                 text-align: center;
             }
@@ -614,7 +615,7 @@ class FlightBookingApp:
             }
         </style>
         """, unsafe_allow_html=True)
-
+        
     def format_duration(self, minutes):
         """Format minutes to hours and minutes"""
         hours = minutes // 60
@@ -654,4 +655,4 @@ class FlightBookingApp:
             if fare_class == "Economy":
                 price = random.randint(2500, 5000)
             elif fare_class == "Premium Economy":
-                price
+                price = random.randint(5
